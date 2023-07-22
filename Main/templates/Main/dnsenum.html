@@ -1,0 +1,67 @@
+<!-- dns_enumeration.html -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DNS Enumeration</title>
+</head>
+<body>
+    <h1>DNS Enumeration</h1>
+    <form id="dnsForm" onsubmit="return false;">
+        <label for="targetDomain">Enter Target Domain:</label>
+        <input type="text" id="targetDomain" name="targetDomain" required>
+        <button type="button" onclick="startDNSEnumeration()">Start DNS Enumeration</button>
+        <button type="button" onclick="stopDNSEnumeration()">Stop DNS Enumeration</button>
+    </form>
+
+    <div id="results">
+        <h2>Enumeration Results:</h2>
+        <pre id="enumerationResults"></pre>
+    </div>
+
+    <script>
+        var socket = null;
+
+        function startDNSEnumeration() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                console.log("A DNS enumeration process is already running.");
+                return;
+            }
+
+            const form = document.getElementById('dnsForm');
+            const targetDomain = form.targetDomain.value;
+
+            const data = {
+                target_domain: targetDomain,
+            };
+
+            socket = new WebSocket('ws://' + window.location.host + '/ws/dns_enumerate/');
+            socket.onopen = function(event) {
+                socket.send(JSON.stringify(data));
+            };
+
+            socket.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                const enumerationResults = document.getElementById('enumerationResults');
+                enumerationResults.textContent = JSON.stringify(message, null, 4);
+            };
+
+            socket.onclose = function(event) {
+                console.log("WebSocket connection closed.");
+            };
+
+            socket.onerror = function(event) {
+                console.error("WebSocket error:", event);
+            };
+        }
+
+        function stopDNSEnumeration() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.close();
+            } else {
+                console.log("No active DNS enumeration process to stop.");
+            }
+        }
+    </script>
+</body>
+</html>

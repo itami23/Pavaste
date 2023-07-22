@@ -177,3 +177,59 @@ class DirectoryListingConsumer(AsyncWebsocketConsumer):
 
 
 
+
+###########################################################################DNS ENUMERATION SECTION########################################################
+# dns_enumeration/consumers.py
+
+import dns.resolver
+import json
+import asyncio
+
+class DNSEnumerationConsumer(AsyncWebsocketConsumer):
+    record_types = ['A', 'AAAA', 'NS', 'CNAME', 'MX', 'PTR', 'SOA', 'TXT']
+
+    async def connect(self):
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        pass
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        target_domain = data.get('target_domain')
+
+        if not target_domain:
+            await self.send(text_data=json.dumps({'error': 'Invalid request: target_domain is missing'}))
+            return
+
+        results = await self.perform_dns_enumeration(target_domain)
+
+        # Send the DNS enumeration results back to the client
+        await self.send(text_data=json.dumps(results))
+
+    async def perform_dns_enumeration(self, domain):
+        results = {}
+
+        try:
+            for record_type in DNSEnumerationConsumer.record_types:
+                try:
+                    answers = dns.resolver.resolve(domain, record_type)
+                    record_list = []
+                    for answer in answers:
+                        record_list.append(answer.to_text())
+
+                    results[record_type] = record_list
+
+                except dns.resolver.NoAnswer:
+                    pass
+
+                except dns.resolver.NXDOMAIN:
+                    print(f'{domain} does not exist')
+
+                except dns.resolver.Timeout:
+                    print(f'Timeout occurred while resolving {record_type} records for {domain}')
+
+        except dns.resolver.NoNameservers:
+            print(f'No nameservers found for {domain}')
+
+        return results

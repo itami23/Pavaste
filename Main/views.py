@@ -4,4 +4,9 @@ import json
 
 def index(request):
     return render(request, 'Main/index.html')
+
+
+def dns_enumeration(request):
+    return render(request, 'Main/dnsenum.html')
+
     
