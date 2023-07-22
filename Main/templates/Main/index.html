@@ -1,0 +1,88 @@
+ <!DOCTYPE html>
+<html>
+<head>
+    <title>Website Penetration Testing</title>
+</head>
+<body>
+    <h1>Website Penetration Testing</h1>
+    <form id="directoryForm" onsubmit="return false;">
+        {% csrf_token %}
+        <label for="url">Website URL:</label>
+        <input type="text" name="url" id="url" required><br>
+        <label for="wordlist">Wordlist File:</label>
+        <input type="file" name="wordlist" id="wordlist" required><br>
+        <label for="recursive">Recursive:</label>
+        <input type="checkbox" name="recursive" id="recursive"><br>
+        <label for="extensions">File Extensions (comma-separated):</label>
+        <input type="text" name="extensions" id="extensions"><br>
+        <label for="status_codes">Valid HTTP Status Codes (comma-separated):</label>
+        <input type="text" name="status_codes" id="status_codes"><br>
+        <label for="timeout">Timeout (in seconds):</label>
+        <input type="number" name="timeout" id="timeout" value="5" min="1"><br>
+
+        <button type="button" onclick="startDirectoryListing()">Start Directory Listing</button>
+        <button type="button" onclick="stopDirectoryListing()">Stop Directory Listing</button>
+    </form>
+
+    <div id="results">
+        <h2>Found Directories:</h2>
+        <ul id="directoriesList"></ul>
+    </div>
+
+    <script>
+        var socket = null;
+
+        function startDirectoryListing() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                console.log("A directory listing process is already running.");
+                return;
+            }
+
+            const form = document.getElementById('directoryForm');
+            const url = form.url.value;
+            const recursive = form.recursive.checked;
+            const extensions = form.extensions.value.split(',');
+            const status_codes_input = form.status_codes.value.split(',');
+            const status_codes = status_codes_input.map(code => parseInt(code.trim(), 10));
+            const timeout = parseInt(form.timeout.value);
+
+            const data = {
+                url: url,
+                recursive: recursive,
+                extensions: extensions,
+                status_codes: status_codes,
+                timeout: timeout,
+            };
+
+            socket = new WebSocket('ws://' + window.location.host + '/ws/directory_listing/');
+            socket.onopen = function(event) {
+                socket.send(JSON.stringify(data));
+            };
+
+            socket.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                const directoriesList = document.getElementById('directoriesList');
+                const newListItem = document.createElement('li');
+                newListItem.textContent = message.directory;
+                directoriesList.appendChild(newListItem);
+            };
+
+            socket.onclose = function(event) {
+                console.log("WebSocket connection closed.");
+            };
+
+            socket.onerror = function(event) {
+                console.error("WebSocket error:", event);
+            };
+        }
+
+        function stopDirectoryListing() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.close();
+            } else {
+                console.log("No active directory listing process to stop.");
+            }
+        }
+    </script>
+</body>
+</html>
