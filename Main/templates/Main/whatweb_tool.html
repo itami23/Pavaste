@@ -1,0 +1,188 @@
+{% extends "All/base.html" %}
+
+<!-- <!DOCTYPE html>
+<html>
+<head>
+    <title>WhatWeb Tool</title>
+</head>
+<body>
+    <h1>WhatWeb Tool</h1>
+    <form id="whatwebForm" onsubmit="return false;">
+        <label for="url">Enter URL:</label>
+        <input type="text" name="url" id="url" required>
+        <button type="button" onclick="startWhatWeb()">Start WhatWeb</button>
+    </form>
+
+    <div id="results">
+        <h2>WhatWeb Results:</h2>
+        <pre id="whatwebResults"></pre>
+    </div>
+
+    <script>
+        var socket = null;
+
+        function startWhatWeb() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                console.log("A WhatWeb process is already running.");
+                return;
+            }
+
+            const form = document.getElementById('whatwebForm');
+            const url = form.url.value;
+
+            const data = {
+                url: url,
+            };
+
+            socket = new WebSocket('ws://' + window.location.host + '/ws/whatweb_tool/');
+            socket.onopen = function(event) {
+                socket.send(JSON.stringify(data));
+            };
+
+            socket.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                const whatwebResults = document.getElementById('whatwebResults');
+                whatwebResults.textContent = JSON.stringify(message, null, 4);
+            };
+
+            socket.onclose = function(event) {
+                console.log("WebSocket connection closed.");
+            };
+
+            socket.onerror = function(event) {
+                console.error("WebSocket error:", event);
+            };
+        }
+    </script>
+</body>
+</html> -->
+
+
+
+
+
+{% block title %}
+    WhatWeb Tool
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid pt-4 px-4">
+        <div class="row g-4">
+            <div class="col-sm-12 col-xl-12">
+                <div class="bg-secondary rounded h-100 p-4">
+                    <h6 class="mb-4">WhatWeb Tool</h6>
+                    <form id="whatwebForm" onsubmit="return false;">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="targetUrl" class="form-label">Target URL</label>
+                            <input type="text" id="targetUrl" name="targetUrl" required class="form-control" autocomplete="off">
+                        </div>
+                        <button type="button" onclick="startWhatWebTool()" class="btn btn-success">Start WhatWeb Tool</button>
+                        <button type="button" onclick="stopWhatWebTool()" class="btn btn-primary">Stop WhatWeb Tool</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-sm-12 col-md-6 col-xl-12">
+                <div class="h-100 bg-secondary rounded p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">WhatWeb Tool Results:</h6>
+                    </div>
+                    <div id="whatwebResults">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var socket = null;
+
+        function startWhatWebTool() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                console.log("A WhatWeb Tool process is already running.");
+                return;
+            }
+
+            const form = document.getElementById('whatwebForm');
+            const targetUrl = form.targetUrl.value;
+
+            const data = {
+                url: targetUrl,
+            };
+
+            socket = new WebSocket('ws://' + window.location.host + '/ws/whatweb_tool/');
+            socket.onopen = function (event) {
+                socket.send(JSON.stringify(data));
+            };
+
+            socket.onmessage = function (event) {
+                const message = JSON.parse(event.data);
+                const whatwebResults = document.getElementById('whatwebResults');
+                whatwebResults.innerHTML = ''; // Clear the previous results
+
+                if ('error' in message) {
+                    const errorMessage = document.createElement('p');
+                    errorMessage.textContent = message.error;
+                    whatwebResults.appendChild(errorMessage);
+                } else {
+                    const resultData = message;
+
+                    // Create a list for the result data
+                    const listElement = document.createElement('ul');
+
+                    // Add each result to the list
+                    for (const key in resultData) {
+                        if (resultData.hasOwnProperty(key)) {
+                            const listItem = document.createElement('li');
+
+                            // Check if the result is an object (e.g., meta_tags, cookies, headers)
+                            if (typeof resultData[key] === 'object') {
+                                const subList = document.createElement('ul');
+
+                                // Add the header for the sublist
+                                const headerListItem = document.createElement('li');
+                                headerListItem.textContent = `-- ${key} --`;
+                                subList.appendChild(headerListItem);
+
+                                // Add each sub-item of the object to the sub-list
+                                for (const subKey in resultData[key]) {
+                                    if (resultData[key].hasOwnProperty(subKey)) {
+                                        const subListItem = document.createElement('li');
+                                        subListItem.innerHTML = `<strong>${subKey}</strong>: ${resultData[key][subKey]}`;
+                                        subList.appendChild(subListItem);
+                                    }
+                                }
+
+                                listItem.appendChild(subList);
+                            } else {
+                                // If not an object, display the result directly
+                                listItem.innerHTML = `<strong>${key}</strong>: ${resultData[key]}`;
+                            }
+
+                            listElement.appendChild(listItem);
+                        }
+                    }
+
+                    whatwebResults.appendChild(listElement);
+                }
+            };
+
+            socket.onclose = function (event) {
+                console.log("WebSocket connection closed.");
+            };
+
+            socket.onerror = function (event) {
+                console.error("WebSocket error:", event);
+            };
+        }
+
+        function stopWhatWebTool() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.close();
+            } else {
+                console.log("No active WhatWeb Tool process to stop.");
+            }
+        }
+    </script>
+{% endblock %}

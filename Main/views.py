@@ -9,4 +9,7 @@ def index(request):
 def dns_enumeration(request):
     return render(request, 'Main/dnsenum.html')
 
+def whatweb_tool_view(request):
+    return render(request, 'Main/whatweb_tool.html')
+
     

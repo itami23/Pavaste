@@ -1,6 +1,6 @@
-<!-- dns_enumeration.html -->
+{% extends "All/base.html" %}
 
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html>
 <head>
     <title>DNS Enumeration</title>
@@ -65,3 +65,121 @@
     </script>
 </body>
 </html>
+ -->
+
+
+
+{% block title %}
+    Dns Enumeration
+{% endblock %}
+
+
+{% block content %}
+            <div class="container-fluid pt-4 px-4">
+                <div class="row g-4">
+                    <div class="col-sm-12 col-xl-12">
+                        <div class="bg-secondary rounded h-100 p-4">
+                            <h6 class="mb-4">DNS Enumeration</h6>
+                            <form id="dnsForm" onsubmit="return false;">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label for="targetDomain" class="form-label">Target Domain</label>
+                                    <input type="text" id="targetDomain" name="targetDomain" required class="form-control" autocomplete="off">
+                                </div>
+                                <button type="button" onclick="startDNSEnumeration()" class="btn btn-success">Start DNS Enemaration</button>
+                                <button type="button" onclick="stopDNSEnumeration()" class="btn btn-primary">Stop DNS Enemaration</button>
+                            </form>
+                        </div>
+                    </div>
+
+
+                    <div class="col-sm-12 col-md-6 col-xl-12">
+                        <div class="h-100 bg-secondary rounded p-4">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <h6 class="mb-0">Found Records :</h6>         
+                            </div>
+                            <div id="enumerationResults">
+                            
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+    <script>
+        var socket = null;
+
+        function startDNSEnumeration() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                console.log("A DNS enumeration process is already running.");
+                return;
+            }
+
+            const form = document.getElementById('dnsForm');
+            const targetDomain = form.targetDomain.value;
+
+            const data = {
+                target_domain: targetDomain,
+            };
+
+            socket = new WebSocket('ws://' + window.location.host + '/ws/dns_enumerate/');
+            socket.onopen = function(event) {
+                socket.send(JSON.stringify(data));
+            };
+
+            socket.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                const enumerationResults = document.getElementById('enumerationResults');
+                enumerationResults.innerHTML = ''; // Clear the previous results
+
+                for (const recordType in message) {
+                    if (message.hasOwnProperty(recordType)) {
+                        const recordList = message[recordType];
+
+                        if (recordList && recordList.length > 0) {
+                            // Create a list for each record type
+                            const listElement = document.createElement('ul');
+                            listElement.innerHTML = `<h6>${recordType} Records:</h6>`;
+
+                            // Add each record to the list
+                            for (const record of recordList) {
+                                const listItem = document.createElement('li');
+                                listItem.textContent = record;
+                                listElement.appendChild(listItem);
+                            }
+
+                            enumerationResults.appendChild(listElement);
+                        }
+                    }
+                }
+            };
+
+            socket.onclose = function(event) {
+                console.log("WebSocket connection closed.");
+            };
+
+            socket.onerror = function(event) {
+                console.error("WebSocket error:", event);
+            };
+        }
+
+        function stopDNSEnumeration() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.close();
+            } else {
+                console.log("No active DNS enumeration process to stop.");
+            }
+        }
+    </script>
+{% endblock %}
+
+
+
+
+
+
+
+
+
+

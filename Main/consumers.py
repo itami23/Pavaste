@@ -97,6 +97,15 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 import json
 
 class DirectoryListingConsumer(AsyncWebsocketConsumer):
+
+    ####################################
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stop_requested = False
+
+    ####################################
+
     async def connect(self):
         await self.accept()
 
@@ -106,6 +115,11 @@ class DirectoryListingConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         # Parse the input data sent from the client (website URL and other options)
         data = json.loads(text_data)
+        ###############################
+        if 'stop' in data and data['stop'] == True:
+            self.stop_requested = True
+            return
+        ################################
         url = data['url']
         recursive = data.get('recursive', False)
         extensions = data.get('extensions')
@@ -136,9 +150,10 @@ class DirectoryListingConsumer(AsyncWebsocketConsumer):
             try:
                 with open(wordlist, 'r') as file:
                     for line in file:
-                        if self.scope.get('stop_requested'):
-                            # Stop directory listing if stop_requested is True
+                        ###########
+                        if self.stop_requested:
                             break
+                        ###########
 
                         word = line.strip()
                         dir_url = urljoin(url, word)
@@ -188,10 +203,21 @@ import asyncio
 class DNSEnumerationConsumer(AsyncWebsocketConsumer):
     record_types = ['A', 'AAAA', 'NS', 'CNAME', 'MX', 'PTR', 'SOA', 'TXT']
 
+    ################################################
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.client_connected = True
+
+    ###############################################
+
     async def connect(self):
         await self.accept()
 
     async def disconnect(self, close_code):
+        ##############################
+        self.client_connected = False
+        ##############################
         pass
 
     async def receive(self, text_data):
@@ -209,6 +235,12 @@ class DNSEnumerationConsumer(AsyncWebsocketConsumer):
 
     async def perform_dns_enumeration(self, domain):
         results = {}
+
+        #########################################
+        if not self.client_connected:
+            print("Consumer Stoped")
+            return
+        #########################################
 
         try:
             for record_type in DNSEnumerationConsumer.record_types:
@@ -233,3 +265,69 @@ class DNSEnumerationConsumer(AsyncWebsocketConsumer):
             print(f'No nameservers found for {domain}')
 
         return results
+
+
+
+
+################################################################WHATWEB###################################
+# WhatWebApp/consumers.py
+import json
+import requests
+from bs4 import BeautifulSoup
+from channels.generic.websocket import AsyncWebsocketConsumer
+
+class WhatWebConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        pass
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        url = data.get('url', '')
+
+        if url:
+            await self.process_url(url)
+        else:
+            await self.send(text_data=json.dumps({'error': 'Invalid request: URL is missing'}))
+
+    async def process_url(self, url):
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                headers = response.headers
+
+                server = headers.get('Server', '')
+                technology = headers.get('X-Powered-By', '')
+
+                soup = BeautifulSoup(response.content, 'html.parser')
+                title = soup.title.string if soup.title else ''
+
+                meta_tags = {}
+                for meta_tag in soup.find_all('meta'):
+                    name = meta_tag.get('name', '')
+                    content = meta_tag.get('content', '')
+                    if name and content:
+                        meta_tags[name] = content
+
+                cookies = {}
+                for cookie in response.cookies:
+                    cookies[cookie.name] = cookie.value
+
+                result = {
+                    'url': url,
+                    'server': server,
+                    'technology': technology,
+                    'title': title,
+                    'meta_tags': meta_tags,
+                    'cookies': cookies,
+                    'headers': dict(headers)
+                }
+
+                json_data = json.dumps(result, indent=4)
+                await self.send(text_data=json_data)
+            else:
+                await self.send(text_data=json.dumps({'error': f"Received HTTP status code {response.status_code}"}))
+        except requests.exceptions.RequestException as e:
+            await self.send_json({'error': str(e)})

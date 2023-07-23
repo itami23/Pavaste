@@ -1,4 +1,5 @@
- <!DOCTYPE html>
+{% extends "All/base.html" %}
+<!--  <!DOCTYPE html>
 <html>
 <head>
     <title>Website Penetration Testing</title>
@@ -86,3 +87,157 @@
     </script>
 </body>
 </html>
+ -->
+
+
+
+
+
+
+{% block title %}
+    DirBuster
+{% endblock %}
+
+
+{% block content %}
+            <div class="container-fluid pt-4 px-4">
+                <div class="row g-4">
+                    <div class="col-sm-12 col-xl-12">
+                        <div class="bg-secondary rounded h-100 p-4">
+                            <h6 class="mb-4">Directory Listing</h6>
+                            <form id="directoryForm" onsubmit="return false;">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label for="url" class="form-label">URL</label>
+                                    <input type="text" name="url" id="url" required class="form-control">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="extensions" class="form-label">Extensions (comma seperated)</label>
+                                    <input type="text" name="extensions" id="extensions" class="form-control">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="status_codes" class="form-label">Status Codes (comma seperated)</label>
+                                    <input type="text" name="status_codes" id="status_codes" class="form-control">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="status_codes" class="form-label">Timout (seconds)</label>
+                                    <input type="number" name="timeout" id="timeout" value="5" min="1" class="form-control">
+                                </div>
+                                <div class="mb-3 form-check">
+                                    <input  type="checkbox" name="recursive" id="recursive" class="form-check-input">
+                                    <label class="form-check-label" for="recursive">Recursive</label>
+                                </div>
+                                <button type="button" onclick="startDirectoryListing()" class="btn btn-success">Start Directory Busting</button>
+                                <button type="button" onclick="stopDirectoryListing()" class="btn btn-primary">Stop Directory Busting</button>
+                            </form>
+                        </div>
+                    </div>
+
+
+                    <div class="col-sm-12 col-md-6 col-xl-12">
+                        <div class="h-100 bg-secondary rounded p-4">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <h6 class="mb-0">Found Directories:</h6>         
+                            </div>
+                            <div id="directoriesList">
+                            
+                            </div>
+                        </div>
+                    </div>
+
+
+
+                </div>
+            </div>
+
+
+    <script>
+        var socket = null;
+
+        function startDirectoryListing() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                console.log("A directory listing process is already running.");
+                return;
+            }
+
+            const form = document.getElementById('directoryForm');
+            const url = form.url.value;
+            const recursive = form.recursive.checked;
+            const extensions = form.extensions.value.split(',');
+            const status_codes_input = form.status_codes.value.split(',');
+            const status_codes = status_codes_input.map(code => parseInt(code.trim(), 10));
+            const timeout = parseInt(form.timeout.value);
+
+            const data = {
+                url: url,
+                recursive: recursive,
+                extensions: extensions,
+                status_codes: status_codes,
+                timeout: timeout,
+            };
+
+            socket = new WebSocket('ws://' + window.location.host + '/ws/directory_listing/');
+            socket.onopen = function(event) {
+                socket.send(JSON.stringify(data));
+            };
+
+            socket.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                const directoriesList = document.getElementById('directoriesList');
+
+                // Create the main div
+                const newDiv = document.createElement('div');
+                newDiv.className = 'd-flex align-items-center border-bottom py-3';
+
+                // Create the nested divs and elements
+                const nestedDiv = document.createElement('div');
+                nestedDiv.className = 'w-100 ms-3';
+
+                const nestedDiv2 = document.createElement('div');
+                nestedDiv2.className = 'd-flex w-100 justify-content-between';
+
+                const h6 = document.createElement('h6');
+                h6.className = 'mb-0';
+                h6.textContent = message.directory;
+
+                // Build the hierarchy: h6 -> nestedDiv2 -> nestedDiv -> newDiv -> directoriesList
+                nestedDiv2.appendChild(h6);
+                nestedDiv.appendChild(nestedDiv2);
+                newDiv.appendChild(nestedDiv);
+
+                // Add the new div to directoriesList
+                directoriesList.appendChild(newDiv);
+            };
+
+
+            socket.onclose = function(event) {
+                console.log("WebSocket connection closed.");
+            };
+
+            socket.onerror = function(event) {
+                console.error("WebSocket error:", event);
+            };
+        }
+
+        // function stopDirectoryListing() {
+        //     if (socket && socket.readyState === WebSocket.OPEN) {
+        //         socket.close();
+        //     } else {
+        //         console.log("No active directory listing process to stop.");
+        //     }
+        // }
+
+        function stopDirectoryListing() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                const stopSignal = JSON.stringify({ stop: true });
+                socket.send(stopSignal);
+                socket.close();
+            } else {
+                console.log("No active directory listing process to stop.");
+            }
+        }
+
+
+    </script>
+{% endblock %}
+
