@@ -12,4 +12,7 @@ def dns_enumeration(request):
 def whatweb_tool_view(request):
     return render(request, 'Main/whatweb_tool.html')
 
+def crtsh(request):
+    return render(request, 'Main/crtsh.html')    
+
     

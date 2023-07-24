@@ -1,0 +1,93 @@
+<!-- crtsh_search/templates/searchcrtsh.html -->
+{% extends 'All/base.html' %}
+
+{% block title %}
+    CRTSH Search
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid pt-4 px-4">
+        <div class="row g-4">
+            <div class="col-sm-12 col-xl-12">
+                <div class="bg-secondary rounded h-100 p-4">
+                    <h6 class="mb-4">CRTSH Search</h6>
+                    <form id="crtshForm">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="domain" class="form-label">Domain</label>
+                            <input type="text" id="domain" name="domain" required class="form-control" autocomplete="off">
+                        </div>
+                        <button type="button" onclick="searchCRTSH()" class="btn btn-success">Search CRTSH</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-sm-12 col-md-6 col-xl-12">
+                <div class="h-100 bg-secondary rounded p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">Certificate Details:</h6>
+                    </div>
+                    <div id="crtshResults">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const crtshForm = document.getElementById('crtshForm');
+        const crtshResults = document.getElementById('crtshResults');
+
+        function searchCRTSH() {
+            const domain = crtshForm.domain.value;
+
+            const data = {
+                domain: domain,
+            };
+
+            const socket = new WebSocket('ws://' + window.location.host + '/ws/crtsh_search/');
+            socket.onopen = function (event) {
+                socket.send(JSON.stringify(data));
+            };
+
+            socket.onmessage = function (event) {
+                const message = JSON.parse(event.data);
+
+                if ('error' in message) {
+                    const errorMessage = document.createElement('p');
+                    errorMessage.textContent = message.error;
+                    crtshResults.appendChild(errorMessage);
+                } else {
+                    crtshResults.innerHTML = ''; // Clear previous results
+
+                    // Create a list for the certificate details
+                    const listElement = document.createElement('ul');
+
+                    // Add each certificate detail to the list
+                    for (const certInfo of message) {
+                        const listItem = document.createElement('li');
+                        listItem.innerHTML = `
+                            <strong>Common Name:</strong> ${certInfo['Common Name']}<br>
+                            <strong>Issuer Organization:</strong> ${certInfo['Issuer Organization']}<br>
+                            <strong>Not Before:</strong> ${certInfo['Not Before']}<br>
+                            <strong>Not After:</strong> ${certInfo['Not After']}<br>
+                        `;
+                        listElement.appendChild(listItem);
+                    }
+
+                    crtshResults.appendChild(listElement);
+                }
+
+                socket.close();
+            };
+
+            socket.onclose = function (event) {
+                console.log("WebSocket connection closed.");
+            };
+
+            socket.onerror = function (event) {
+                console.error("WebSocket error:", event);
+            };
+        }
+    </script>
+{% endblock %}

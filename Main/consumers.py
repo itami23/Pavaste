@@ -331,3 +331,83 @@ class WhatWebConsumer(AsyncWebsocketConsumer):
                 await self.send(text_data=json.dumps({'error': f"Received HTTP status code {response.status_code}"}))
         except requests.exceptions.RequestException as e:
             await self.send_json({'error': str(e)})
+
+
+
+
+########################################crtsh#######################################################
+import requests
+import re
+import datetime
+import json
+from channels.generic.websocket import AsyncWebsocketConsumer
+
+
+class CRTSHConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        pass
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        domain = data.get("domain")
+
+        if domain:
+            await self.search_crtsh(domain)
+        else:
+            await self.send(text_data=json.dumps({"error": "Domain name is required."}))
+
+    async def search_crtsh(self, domain):
+        base_url = f"https://crt.sh/?q={domain}&output=json"
+        response = requests.get(base_url)
+
+        if not response.ok:
+            await self.send(text_data=json.dumps({"error": "Error retrieving crt.sh data."}))
+            return
+
+        certificates = response.json()
+        certificate_data = []
+        processed_common_names = set()
+
+        for cert in certificates:
+            common_name = cert.get("common_name", "")
+            issuer_name = cert.get("issuer_name", "")
+            not_before = cert.get("not_before", "")
+            not_after = cert.get("not_after", "")
+            extensions = cert.get("extensions", "")
+
+            if not common_name or not issuer_name or not not_before or not not_after:
+                continue
+
+            if common_name in processed_common_names:
+                continue  
+
+            not_before_date = datetime.datetime.strptime(not_before, "%Y-%m-%dT%H:%M:%S")
+            not_after_date = datetime.datetime.strptime(not_after, "%Y-%m-%dT%H:%M:%S")
+
+            issuer_organization = re.search(r"O=([\w\s]+)", issuer_name)
+            issuer_organization = issuer_organization.group(1) if issuer_organization else ""
+
+            matching_identities = []
+            if extensions:
+                for extension in extensions:
+                    if "key" in extension and extension["key"] == "2.5.29.17":
+                        matching_identities = extension.get("value", "").split(",")
+
+            certificate_info = {
+                "Common Name": common_name,
+                "Issuer Organization": issuer_organization,
+                "Not Before": not_before_date.strftime("%Y-%m-%d %H:%M:%S"),
+                "Not After": not_after_date.strftime("%Y-%m-%d %H:%M:%S"),
+                "Matching Identities": matching_identities,
+            }
+
+            certificate_data.append(certificate_info)
+            processed_common_names.add(common_name)
+
+        if certificate_data:
+            await self.send(text_data=json.dumps(certificate_data))
+        else:
+            await self.send(text_data=json.dumps({"error": "No certificate data found for the domain."}))
