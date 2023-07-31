@@ -7,4 +7,6 @@ websocket_urlpatterns = [
     path('ws/dns_enumerate/', consumers.DNSEnumerationConsumer.as_asgi()),
     path('ws/whatweb_tool/', consumers.WhatWebConsumer.as_asgi()),
     path('ws/crtsh_search/', consumers.CRTSHConsumer.as_asgi()),
+    path('ws/subdomain_scan/', consumers.SubdomainScanConsumer.as_asgi()),
+    path('ws/crawler/', consumers.CrawlerConsumer.as_asgi()),
 ]

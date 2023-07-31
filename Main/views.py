@@ -13,6 +13,12 @@ def whatweb_tool_view(request):
     return render(request, 'Main/whatweb_tool.html')
 
 def crtsh(request):
-    return render(request, 'Main/crtsh.html')    
+    return render(request, 'Main/crtsh.html')
+
+def subdomainscan(request):
+    return render(request, 'Main/subdomainscan.html')
+
+def crawler(request):
+    return render(request, 'Main/crawler.html')
 
     

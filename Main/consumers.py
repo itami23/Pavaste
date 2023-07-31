@@ -85,7 +85,7 @@
 
 
 
-#################################################################################################################################################################
+##############################################DIR LISTING###################################################################################################################
 
 
 
@@ -330,8 +330,7 @@ class WhatWebConsumer(AsyncWebsocketConsumer):
             else:
                 await self.send(text_data=json.dumps({'error': f"Received HTTP status code {response.status_code}"}))
         except requests.exceptions.RequestException as e:
-            await self.send_json({'error': str(e)})
-
+            await self.send(text_data=json.dumps({'error': str(e)}))
 
 
 
@@ -411,3 +410,369 @@ class CRTSHConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps(certificate_data))
         else:
             await self.send(text_data=json.dumps({"error": "No certificate data found for the domain."}))
+
+
+##########################################Subdomain Scannig#######################################
+# import os
+# import json
+# import requests
+# from selenium import webdriver
+# from selenium.webdriver.firefox.options import Options as FirefoxOptions
+# from django.conf import settings
+# from channels.generic.websocket import AsyncWebsocketConsumer
+# import nmap
+
+# class SubdomainScanConsumer(AsyncWebsocketConsumer):
+#     async def connect(self):
+#         await self.accept()
+
+#     async def disconnect(self, close_code):
+#         pass
+
+#     async def receive(self, text_data):
+#         data = json.loads(text_data)
+#         subdomain = data.get("subdomain")
+
+#         if subdomain:
+#             headers = await self.get_headers(subdomain)
+#             screenshot_path = await self.take_screenshot(subdomain)
+
+#             # Convert headers to a regular dictionary
+#             headers_dict = dict(headers)
+
+#             response_data = {
+#                 "headers": headers_dict,
+#                 "screenshot": screenshot_path,
+#             }
+
+#             await self.send(text_data=json.dumps(response_data))
+#         else:
+#             await self.send(text_data=json.dumps({"error": "Subdomain is required."}))
+
+#     async def get_headers(self, subdomain):
+#         url = f"http://{subdomain}"
+#         try:
+#             response = requests.head(url, timeout=10)
+#             return response.headers
+#         except requests.RequestException as e:
+#             return {"error": str(e)}
+
+#     async def take_screenshot(self, subdomain):
+#         firefox_options = FirefoxOptions()
+#         firefox_options.headless = True
+#         firefox_driver = "/usr/local/bin/geckodriver-master"  # Adjust the path to your geckodriver executable
+#         driver = webdriver.Firefox(options=firefox_options)  # Use executable_path
+
+#         try:
+#             url = f"http://{subdomain}"
+#             driver.get(url)
+#             screenshot_path = os.path.join(settings.MEDIA_ROOT, f"{subdomain}.png")
+#             driver.save_screenshot(screenshot_path)
+#             return f"{subdomain}.png"
+#         except Exception as e:
+#             return {"error": str(e)}
+#         finally:
+#             driver.quit()
+
+
+import os
+import json
+import requests
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from django.conf import settings
+from channels.generic.websocket import AsyncWebsocketConsumer
+import nmap
+
+class SubdomainScanConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        pass
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        subdomain = data.get("subdomain")
+
+        if subdomain:
+            headers = await self.get_headers(subdomain)
+            screenshot_path = await self.take_screenshot(subdomain)
+            nmap_results = await self.run_nmap_scan(subdomain)
+
+            # Convert headers to a regular dictionary
+            headers_dict = dict(headers)
+
+            response_data = {
+                "headers": headers_dict,
+                "screenshot": screenshot_path,
+                "nmap_results": nmap_results,
+            }
+
+            await self.send(text_data=json.dumps(response_data))
+        else:
+            await self.send(text_data=json.dumps({"error": "Subdomain is required."}))
+
+    async def get_headers(self, subdomain):
+        url = f"http://{subdomain}"
+        try:
+            response = requests.head(url, timeout=10)
+            return response.headers
+        except requests.RequestException as e:
+            return {"error": str(e)}
+
+    async def take_screenshot(self, subdomain):
+        firefox_options = FirefoxOptions()
+        firefox_options.headless = True
+        firefox_driver = "/usr/local/bin/geckodriver-master"  # Adjust the path to your geckodriver executable
+        driver = webdriver.Firefox(options=firefox_options)  # Use executable_path
+
+        try:
+            url = f"http://{subdomain}"
+            driver.get(url)
+            screenshot_path = os.path.join(settings.MEDIA_ROOT, f"{subdomain}.png")
+            driver.save_screenshot(screenshot_path)
+            return f"{subdomain}.png"
+        except Exception as e:
+            return {"error": str(e)}
+        finally:
+            driver.quit()
+
+    async def run_nmap_scan(self, subdomain):
+        nm = nmap.PortScanner()
+        target_host = f"{subdomain}"
+        try:
+            nm.scan(hosts=target_host, arguments="-T4 -F")
+            if target_host in nm.all_hosts():
+                return nm[target_host].all_tcp()
+            else:
+                return {"error": "Target host not found in Nmap scan results."}
+        except nmap.PortScannerError as e:
+            return {"error": str(e)}
+
+
+##################################CRAWLER###########################
+import re
+import bs4
+import tldextract
+import json
+from channels.generic.websocket import AsyncWebsocketConsumer
+import requests
+
+requests.packages.urllib3.disable_warnings()
+
+user_agent = {'User-Agent': 'FinalRecon'}
+
+class CrawlerConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        pass
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        target_url = data.get('url')
+        print(target_url)
+
+        if target_url:
+            await self.crawler(target_url)
+        else:
+            await self.send_error_message("Target URL not provided.")
+
+    async def send_error_message(self, error_message):
+        response_data = {
+            'error': str(error_message)  # Convert to string to make it JSON serializable
+        }
+        await self.send(text_data=json.dumps(response_data))
+
+    async def send_crawler_results(self, results):
+        await self.send(text_data=json.dumps(results))
+
+    async def crawler(self, target):
+        response_data = {
+            'status': 'success',
+            'results': {}
+        }
+
+        try:
+            rqst = requests.get(target, headers=user_agent, verify=False, timeout=10)
+        except Exception as e:
+            error_message = f'Exception: {e}'
+            await self.send_error_message(error_message)
+            return
+
+        sc = rqst.status_code
+        if sc == 200:
+            page = rqst.content
+            soup = bs4.BeautifulSoup(page, 'lxml')
+
+            protocol = target.split('://')
+            protocol = protocol[0]
+            temp_tgt = target.split('://')[1]
+            pattern = r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{2,5}'
+            custom = bool(re.match(pattern, temp_tgt))
+            if custom is True:
+                r_url = f'{protocol}://{temp_tgt}/robots.txt'
+                sm_url = f'{protocol}://{temp_tgt}/sitemap.xml'
+                base_url = f'{protocol}://{temp_tgt}'
+            else:
+                ext = tldextract.extract(target)
+                hostname = '.'.join(part for part in ext if part)
+                base_url = f'{protocol}://{hostname}'
+                r_url = f'{base_url}/robots.txt'
+                sm_url = f'{base_url}/sitemap.xml'
+
+            # loop = asyncio.new_event_loop()
+            # asyncio.set_event_loop(loop)
+
+            response_data['results']['robots'] = await self.robots(r_url,base_url)
+            response_data['results']['sitemap'] = await self.sitemap(sm_url)
+            # response_data['results']['css'] = await self.css(target)
+            # response_data['results']['js'] = await self.js(target)
+            # response_data['results']['internal_links'] = await self.internal_links(target)
+            # response_data['results']['external_links'] = await self.external_links(target)
+            # response_data['results']['images'] = await self.images(target)
+
+            await self.send_crawler_results(response_data)
+        else:
+            error_message = f'Status Code: {sc}'
+            await self.send_error_message(error_message)
+
+
+    def url_filter(self,target,link):
+        if all([link.startswith('/') is True, link.startswith('//') is False]):
+            ret_url = target + link
+            return ret_url
+        else:
+            pass
+
+        if link.startswith('//') is True:
+            ret_url = link.replace('//', 'http://')
+            return ret_url
+        else:
+            pass
+
+        if all([
+            link.find('//') == -1,
+            link.find('../') == -1,
+            link.find('./') == -1,
+            link.find('http://') == -1,
+            link.find('https://') == -1]
+        ):
+            ret_url = f'{target}/{link}'
+            return ret_url
+        else:
+            pass
+
+        if all([
+            link.find('http://') == -1,
+            link.find('https://') == -1]
+        ):
+            ret_url = link.replace('//', 'http://')
+            ret_url = link.replace('../', f'{target}/')
+            ret_url = link.replace('./', f'{target}/')
+            return ret_url
+        else:
+            pass
+        return link
+
+
+
+    async def robots(self,r_url, base_url):
+        r_total = []
+
+        try:
+            r_rqst = requests.get(r_url, headers=user_agent, verify=False, timeout=10)
+            r_sc = r_rqst.status_code
+            if r_sc == 200:
+                print("deeez")
+                r_page = r_rqst.text
+                r_scrape = r_page.split('\n')
+                print(r_scrape)
+                for entry in r_scrape:
+                    if any([
+                        entry.find('Disallow') == 0,
+                        entry.find('Allow') == 0,
+                        entry.find('Sitemap') == 0]):
+                        print(entry)
+                        url = entry.split(': ')
+                        try:
+                            url = url[1]
+                            url = url.strip()
+                            tmp_url = self.url_filter(base_url, url)
+                            print(f"tmp_url {tmp_url}")
+                            if tmp_url is not None:
+                                r_total.append(self.url_filter(base_url, url))
+                            # if url.endswith('xml') is True:
+                            #     sm_total.append(url)
+                        except Exception as e:
+                            print(str(e))
+
+                
+                print(r_total)
+                if r_total:
+                    return list(r_total) # Convert set to list before returning
+
+                else : 
+                    return json.dumps("mynigga")
+                #print(G + '['.rjust(8, '.') + ' {} ]'.format(str(len(r_total))))
+
+            elif r_sc == 404:
+                await self.send_error_message("404 MY  NIGGA")
+                #print(R + '['.rjust(9, '.') + ' Not Found ]' + W)
+            else:
+                await self.send_error_message("ERRRROOORRR")
+        except Exception as e:
+            await self.send_error_message(str(e))  # Convert the exception to a string
+
+    async def sitemap(self , sm_url):
+        sm_total = []
+        #print(f'{G}[+] {C}Looking for sitemap.xml{W}', end='', flush=True)
+        try:
+            sm_rqst = requests.get(sm_url, headers=user_agent, verify=False, timeout=10)
+            sm_sc = sm_rqst.status_code
+            if sm_sc == 200:
+                #print(G + '['.rjust(8, '.') + ' Found ]' + W)
+                #print(f'{G}[+] {C}Extracting sitemap Links{W}', end='', flush=True)
+                sm_page = sm_rqst.content
+                sm_soup = bs4.BeautifulSoup(sm_page, 'xml')
+                links = sm_soup.find_all('loc')
+                for url in links:
+                    url = url.get_text()
+                    print(url)
+                    if url is not None:
+                        sm_total.append(url)
+
+                print(sm_total)
+                return list(sm_total)
+
+                #sm_total = set(sm_total)
+                #print(G + '['.rjust(7, '.') + ' {} ]'.format(str(len(sm_total))))
+            elif sm_sc == 404:
+                #print(R + '['.rjust(8, '.') + ' Not Found ]' + W)
+                await self.send_error_message("404 MY  NIGGA")
+            else:
+                #print(f'{R}{"[".rjust(8, ".")} Status Code : {sm_sc} ]{W}')
+                await self.send_error_message("ERRRROOORRR")
+        except Exception as e:
+            #print(f'\n{R}[-] Exception : {C}{e}{W}')
+            await self.send_error_message(str(e))
+
+    async def css(self,target):
+        pass
+
+    async def js(self,target):
+        pass
+
+    async def internal_links(self,arget):
+        pass
+
+    async def external_links(self,target):
+        pass
+
+    async def images(self,target):
+        pass
+
+    
+

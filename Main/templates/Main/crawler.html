@@ -1,0 +1,128 @@
+{% extends 'All/base.html' %}
+
+{% block title %}
+    Pavaste Crawler
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid pt-4 px-4">
+        <div class="row g-4">
+            <div class="col-sm-12 col-xl-12">
+                <div class="bg-secondary rounded h-100 p-4">
+                    <h6 class="mb-4">Pavaste Crawler</h6>
+                    <form id="crawlerForm">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="url" class="form-label">URL</label>
+                            <input type="text" id="url" name="url" required class="form-control" autocomplete="off">
+                        </div>
+                        <button type="button" onclick="searchCrawler()" class="btn btn-success">Crawl</button>
+                        <button type="button" onclick="stopCrawler()" class="btn btn-primary">Stop Crawler</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-sm-12 col-md-6 col-xl-6">
+                <div class="h-100 bg-secondary rounded p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">Robots:</h6>
+                    </div>
+                    <div id="robotsResults">
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-12 col-md-6 col-xl-6">
+                <div class="h-100 bg-secondary rounded p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">SiteMap:</h6>
+                    </div>
+                    <div id="sitemapResults">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket;
+
+        function searchCrawler() {
+            const url = document.getElementById('url').value;
+
+            const data = {
+                url: url,
+            };
+
+            socket = new WebSocket('ws://' + window.location.host + '/ws/crawler/');
+
+            socket.onopen = function (event) {
+                socket.send(JSON.stringify(data));
+            };
+
+            socket.onmessage = function (event) {
+                const message = JSON.parse(event.data);
+
+                if ('error' in message) {
+                    const errorMessage = document.createElement('p');
+                    errorMessage.textContent = message.error;
+                    robotsResults.innerHTML = ''; // Clear previous robots results
+                    robotsResults.appendChild(errorMessage);
+
+                    sitemapResults.innerHTML = ''; // Clear previous sitemap results
+                    sitemapResults.appendChild(errorMessage);
+                } else {
+                    if ('robots' in message.results) {
+                        robotsResults.innerHTML = ''; // Clear previous robots results
+
+                        // Create a list for the robots results
+                        const robotslistElement = document.createElement('ul');
+
+                        // Add each robots result to the list
+                        for (const url of message.results.robots) {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = url;
+                            robotslistElement.appendChild(listItem);
+                        }
+
+                        robotsResults.appendChild(robotslistElement);
+                    }
+
+                    if ('sitemap' in message.results) {
+                        sitemapResults.innerHTML = ''; // Clear previous sitemap results
+
+                        // Create a list for the sitemap results
+                        const sitemaplistElement = document.createElement('ul');
+
+                        // Add each sitemap result to the list
+                        for (const url of message.results.sitemap) {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = url;
+                            sitemaplistElement.appendChild(listItem);
+                        }
+
+                        sitemapResults.appendChild(sitemaplistElement);
+                    }
+                }
+
+                socket.close();
+            };
+
+            socket.onclose = function (event) {
+                console.log("WebSocket connection closed.");
+            };
+
+            socket.onerror = function (event) {
+                console.error("WebSocket error:", event);
+            };
+        }
+
+        function stopCrawler() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.close();
+            } else {
+                console.log("No active crawler process to stop.");
+            }
+        }
+    </script>
+{% endblock %}
