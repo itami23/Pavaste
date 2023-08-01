@@ -41,6 +41,55 @@
                     </div>
                 </div>
             </div>
+            <div class="col-sm-12 col-md-6 col-xl-6">
+                <div class="h-100 bg-secondary rounded p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">CSS:</h6>
+                    </div>
+                    <div id="cssResults">
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-12 col-md-6 col-xl-6">
+                <div class="h-100 bg-secondary rounded p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">JS:</h6>
+                    </div>
+                    <div id="jsResults">
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-12 col-md-6 col-xl-6">
+                <div class="h-100 bg-secondary rounded p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">Internal Links:</h6>
+                    </div>
+                    <div id="internalLinksResults">
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-12 col-md-6 col-xl-6">
+                <div class="h-100 bg-secondary rounded p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">External Links:</h6>
+                    </div>
+                    <div id="externalLinksResults">
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-12 col-md-6 col-xl-6">
+                <div class="h-100 bg-secondary rounded p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">Images:</h6>
+                    </div>
+                    <div id="imagesResults">
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -102,6 +151,86 @@
                         }
 
                         sitemapResults.appendChild(sitemaplistElement);
+                    }
+
+                    if ('css' in message.results) {
+                        cssResults.innerHTML = ''; // Clear previous CSS results
+
+                        // Create a list for the CSS results
+                        const cssListElement = document.createElement('ul');
+
+                        // Add each CSS result to the list
+                        for (const cssResult of message.results.css) {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = cssResult;
+                            cssListElement.appendChild(listItem);
+                        }
+
+                        cssResults.appendChild(cssListElement);
+                    }
+
+                    if ('js' in message.results) {
+                        jsResults.innerHTML = ''; // Clear previous JS results
+
+                        // Create a list for the JS results
+                        const jsListElement = document.createElement('ul');
+
+                        // Add each JS result to the list
+                        for (const jsResult of message.results.js) {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = jsResult;
+                            jsListElement.appendChild(listItem);
+                        }
+
+                        jsResults.appendChild(jsListElement);
+                    }
+
+                    if ('internal_links' in message.results) {
+                        internalLinksResults.innerHTML = ''; // Clear previous internal_links results
+
+                        // Create a list for the internal_links results
+                        const internalLinksListElement = document.createElement('ul');
+
+                        // Add each internal_links result to the list
+                        for (const internalLink of message.results.internal_links) {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = internalLink;
+                            internalLinksListElement.appendChild(listItem);
+                        }
+
+                        internalLinksResults.appendChild(internalLinksListElement);
+                    }
+
+                    if ('external_links' in message.results) {
+                        externalLinksResults.innerHTML = ''; // Clear previous external_links results
+
+                        // Create a list for the external_links results
+                        const externalLinksListElement = document.createElement('ul');
+
+                        // Add each external_links result to the list
+                        for (const externalLink of message.results.external_links) {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = externalLink;
+                            externalLinksListElement.appendChild(listItem);
+                        }
+
+                        externalLinksResults.appendChild(externalLinksListElement);
+                    }
+
+                    if ('images' in message.results) {
+                        imagesResults.innerHTML = ''; // Clear previous images results
+
+                        // Create a list for the images results
+                        const imagesListElement = document.createElement('ul');
+
+                        // Add each images result to the list
+                        for (const image of message.results.images) {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = image;
+                            imagesListElement.appendChild(listItem);
+                        }
+
+                        imagesResults.appendChild(imagesListElement);
                     }
                 }
 

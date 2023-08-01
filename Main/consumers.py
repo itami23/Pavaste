@@ -628,11 +628,11 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
 
             response_data['results']['robots'] = await self.robots(r_url,base_url)
             response_data['results']['sitemap'] = await self.sitemap(sm_url)
-            # response_data['results']['css'] = await self.css(target)
-            # response_data['results']['js'] = await self.js(target)
-            # response_data['results']['internal_links'] = await self.internal_links(target)
-            # response_data['results']['external_links'] = await self.external_links(target)
-            # response_data['results']['images'] = await self.images(target)
+            response_data['results']['css'] = await self.css(soup,target)
+            response_data['results']['js'] = await self.js(soup,target)
+            response_data['results']['internal_links'] = await self.internal_links(soup,target)
+            response_data['results']['external_links'] = await self.external_links(soup,target)
+            response_data['results']['images'] = await self.images(soup,target)
 
             await self.send_crawler_results(response_data)
         else:
@@ -759,20 +759,69 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
             #print(f'\n{R}[-] Exception : {C}{e}{W}')
             await self.send_error_message(str(e))
 
-    async def css(self,target):
-        pass
+    async def css(self,soup,target):
+        css_total = []
+        css = soup.find_all('link', href=True)
 
-    async def js(self,target):
-        pass
+        for link in css:
+            url = link.get('href')
+            if url is not None and '.css' in url:
+                css_total.append(self.url_filter(target, url))
 
-    async def internal_links(self,arget):
-        pass
+        return list(css_total)
 
-    async def external_links(self,target):
-        pass
+    async def js(self,soup,target):
+        js_total = []
+        scr_tags = soup.find_all('script', src=True)
 
-    async def images(self,target):
-        pass
+        for link in scr_tags:
+            url = link.get('src')
+            if url is not None and '.js' in url:
+                tmp_url = self.url_filter(target, url)
+                if tmp_url is not None:
+                    js_total.append(tmp_url)
 
+        return list(js_total)
+
+    async def internal_links(self,soup,target):
+        int_total = []
+
+        ext = tldextract.extract(target)
+        domain = ext.registered_domain
+
+        links = soup.find_all('a')
+        for link in links:
+            url = link.get('href')
+            if url is not None:
+                if domain in url:
+                    int_total.append(url)
+
+        return list(int_total)
+
+    async def external_links(self,soup,target):
+        ext_total = []
+
+        ext = tldextract.extract(target)
+        domain = ext.registered_domain
+
+        links = soup.find_all('a')
+        for link in links:
+            url = link.get('href')
+            if url is not None:
+                if domain not in url and 'http' in url:
+                    ext_total.append(url)
+
+        return list(ext_total)
+
+    async def images(self,soup,target):
+        img_total = []
+        image_tags = soup.find_all('img')
+
+        for link in image_tags:
+            url = link.get('src')
+            if url is not None and len(url) > 1:
+                img_total.append(self.url_filter(target, url))
+
+        return list(img_total)
     
 
