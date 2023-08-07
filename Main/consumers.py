@@ -87,9 +87,6 @@
 
 ##############################################DIR LISTING###################################################################################################################
 
-
-
-
 import asyncio
 import aiohttp
 from urllib.parse import urljoin
@@ -558,12 +555,35 @@ import tldextract
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 import requests
+import asyncio
+import threading
 
 requests.packages.urllib3.disable_warnings()
 
-user_agent = {'User-Agent': 'FinalRecon'}
+user_agent = {'User-Agent': 'Pavaste'}
 
 class CrawlerConsumer(AsyncWebsocketConsumer):
+    #############################
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.client_connected = True
+        self.r_total=[]
+        self.sm_total=[]
+        self.css_total = []
+        self.js_total = []
+        self.int_total = []
+        self.ext_total = []
+        self.img_total = []
+        self.js_crawl_total = []
+        self.sm_crawl_total = []
+        self.sm_url = ''
+    #############################
+
+
+
+
+
+
     async def connect(self):
         await self.accept()
 
@@ -573,7 +593,7 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         data = json.loads(text_data)
         target_url = data.get('url')
-        print(target_url)
+        #print(target_url)
 
         if target_url:
             await self.crawler(target_url)
@@ -614,25 +634,27 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
             custom = bool(re.match(pattern, temp_tgt))
             if custom is True:
                 r_url = f'{protocol}://{temp_tgt}/robots.txt'
-                sm_url = f'{protocol}://{temp_tgt}/sitemap.xml'
+                self.sm_url = f'{protocol}://{temp_tgt}/sitemap.xml'
                 base_url = f'{protocol}://{temp_tgt}'
             else:
                 ext = tldextract.extract(target)
                 hostname = '.'.join(part for part in ext if part)
                 base_url = f'{protocol}://{hostname}'
                 r_url = f'{base_url}/robots.txt'
-                sm_url = f'{base_url}/sitemap.xml'
+                self.sm_url = f'{base_url}/sitemap.xml'
 
             # loop = asyncio.new_event_loop()
             # asyncio.set_event_loop(loop)
 
             response_data['results']['robots'] = await self.robots(r_url,base_url)
-            response_data['results']['sitemap'] = await self.sitemap(sm_url)
+            response_data['results']['sitemap'] = await self.sitemap(self.sm_url)
             response_data['results']['css'] = await self.css(soup,target)
             response_data['results']['js'] = await self.js(soup,target)
             response_data['results']['internal_links'] = await self.internal_links(soup,target)
             response_data['results']['external_links'] = await self.external_links(soup,target)
             response_data['results']['images'] = await self.images(soup,target)
+            response_data['results']['sm_total']=await self.sm_crawl()
+            response_data['results']['js_total']=await self.js_crawl()
 
             await self.send_crawler_results(response_data)
         else:
@@ -680,98 +702,91 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
 
 
     async def robots(self,r_url, base_url):
-        r_total = []
+        #r_total = []
 
         try:
             r_rqst = requests.get(r_url, headers=user_agent, verify=False, timeout=10)
             r_sc = r_rqst.status_code
             if r_sc == 200:
-                print("deeez")
+                #print("deeez")
                 r_page = r_rqst.text
                 r_scrape = r_page.split('\n')
-                print(r_scrape)
+                #print(r_scrape)
                 for entry in r_scrape:
                     if any([
                         entry.find('Disallow') == 0,
                         entry.find('Allow') == 0,
                         entry.find('Sitemap') == 0]):
-                        print(entry)
+                        #print(entry)
                         url = entry.split(': ')
                         try:
                             url = url[1]
                             url = url.strip()
                             tmp_url = self.url_filter(base_url, url)
-                            print(f"tmp_url {tmp_url}")
+                            #print(f"tmp_url {tmp_url}")
                             if tmp_url is not None:
-                                r_total.append(self.url_filter(base_url, url))
-                            # if url.endswith('xml') is True:
-                            #     sm_total.append(url)
+                                self.r_total.append(self.url_filter(base_url, url))
+                            if url.endswith('xml') is True:
+                                self.sm_total.append(url)
                         except Exception as e:
                             print(str(e))
 
                 
-                print(r_total)
-                if r_total:
-                    return list(r_total) # Convert set to list before returning
+                #print(self.r_total)
+                if self.r_total:
+                    return list(self.r_total) # Convert set to list before returning
 
                 else : 
                     return json.dumps("mynigga")
-                #print(G + '['.rjust(8, '.') + ' {} ]'.format(str(len(r_total))))
+                
 
             elif r_sc == 404:
                 await self.send_error_message("404 MY  NIGGA")
-                #print(R + '['.rjust(9, '.') + ' Not Found ]' + W)
+                
             else:
                 await self.send_error_message("ERRRROOORRR")
         except Exception as e:
             await self.send_error_message(str(e))  # Convert the exception to a string
 
     async def sitemap(self , sm_url):
-        sm_total = []
-        #print(f'{G}[+] {C}Looking for sitemap.xml{W}', end='', flush=True)
+        #sm_total = []
         try:
             sm_rqst = requests.get(sm_url, headers=user_agent, verify=False, timeout=10)
             sm_sc = sm_rqst.status_code
             if sm_sc == 200:
-                #print(G + '['.rjust(8, '.') + ' Found ]' + W)
-                #print(f'{G}[+] {C}Extracting sitemap Links{W}', end='', flush=True)
                 sm_page = sm_rqst.content
                 sm_soup = bs4.BeautifulSoup(sm_page, 'xml')
                 links = sm_soup.find_all('loc')
                 for url in links:
                     url = url.get_text()
-                    print(url)
+                    #print(url)
                     if url is not None:
-                        sm_total.append(url)
+                        self.sm_total.append(url)
 
-                print(sm_total)
-                return list(sm_total)
+                #print(self.sm_total)
+                return list(self.sm_total)
 
-                #sm_total = set(sm_total)
-                #print(G + '['.rjust(7, '.') + ' {} ]'.format(str(len(sm_total))))
+                
             elif sm_sc == 404:
-                #print(R + '['.rjust(8, '.') + ' Not Found ]' + W)
                 await self.send_error_message("404 MY  NIGGA")
             else:
-                #print(f'{R}{"[".rjust(8, ".")} Status Code : {sm_sc} ]{W}')
                 await self.send_error_message("ERRRROOORRR")
         except Exception as e:
-            #print(f'\n{R}[-] Exception : {C}{e}{W}')
             await self.send_error_message(str(e))
 
     async def css(self,soup,target):
-        css_total = []
+        #css_total = []
         css = soup.find_all('link', href=True)
 
         for link in css:
             url = link.get('href')
             if url is not None and '.css' in url:
-                css_total.append(self.url_filter(target, url))
+                self.css_total.append(self.url_filter(target, url))
 
-        return list(css_total)
+        return list(self.css_total)
 
     async def js(self,soup,target):
-        js_total = []
+        #js_total = []
         scr_tags = soup.find_all('script', src=True)
 
         for link in scr_tags:
@@ -779,12 +794,12 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
             if url is not None and '.js' in url:
                 tmp_url = self.url_filter(target, url)
                 if tmp_url is not None:
-                    js_total.append(tmp_url)
+                    self.js_total.append(tmp_url)
 
-        return list(js_total)
+        return list(self.js_total)
 
     async def internal_links(self,soup,target):
-        int_total = []
+        #int_total = []
 
         ext = tldextract.extract(target)
         domain = ext.registered_domain
@@ -794,12 +809,12 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
             url = link.get('href')
             if url is not None:
                 if domain in url:
-                    int_total.append(url)
+                    self.int_total.append(url)
 
-        return list(int_total)
+        return list(self.int_total)
 
     async def external_links(self,soup,target):
-        ext_total = []
+        #ext_total = []
 
         ext = tldextract.extract(target)
         domain = ext.registered_domain
@@ -809,19 +824,85 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
             url = link.get('href')
             if url is not None:
                 if domain not in url and 'http' in url:
-                    ext_total.append(url)
+                    self.ext_total.append(url)
 
-        return list(ext_total)
+        return list(self.ext_total)
 
     async def images(self,soup,target):
-        img_total = []
+        #img_total = []
         image_tags = soup.find_all('img')
 
         for link in image_tags:
             url = link.get('src')
             if url is not None and len(url) > 1:
-                img_total.append(self.url_filter(target, url))
+                self.img_total.append(self.url_filter(target, url))
 
-        return list(img_total)
+        return list(self.img_total)
     
+    async def sm_crawl(self):
+        threads = []
+
+        def fetch(site_url):
+            try:
+                sm_rqst = requests.get(site_url, headers=user_agent, verify=False, timeout=10)
+                sm_sc = sm_rqst.status_code
+                if sm_sc == 200:
+                    sm_data = sm_rqst.content.decode()
+                    sm_soup = bs4.BeautifulSoup(sm_data, 'xml')
+                    links = sm_soup.find_all('loc')
+                    for url in links:
+                        url = url.get_text()
+                        if url is not None:
+                            self.sm_crawl_total.append(url)
+                elif sm_sc == 404:
+                    pass
+                else:
+                    pass
+            except Exception:
+                pass
+
+        for site_url in self.sm_total:
+            if site_url != self.sm_url:
+                if site_url.endswith('xml') is True:
+                    t = threading.Thread(target=fetch, args=[site_url])
+                    t.daemon = True
+                    threads.append(t)
+                    t.start()
+
+        for thread in threads:
+            thread.join()
+        return list(self.sm_crawl_total)
+    
+
+
+    async def js_crawl(self):
+        threads = []
+
+        def fetch(js_url):
+            try:
+                js_rqst = requests.get(js_url, headers=user_agent, verify=False, timeout=10)
+                js_sc = js_rqst.status_code
+                if js_sc == 200:
+                    js_data = js_rqst.content.decode()
+                    js_data = js_data.split(';')
+                    for line in js_data:
+                        if any(['http://' in line, 'https://' in line]):
+                            found = re.findall(r'\"(http[s]?://.*?)\"', line)
+                            for item in found:
+                                if len(item) > 8:
+                                    self.js_crawl_total.append(item)
+            except Exception as e:
+                pass
+
+        for js_url in self.js_total:
+            t = threading.Thread(target=fetch, args=[js_url])
+            t.daemon = True
+            threads.append(t)
+            t.start()
+
+        for thread in threads:
+            thread.join()
+        
+        return list(self.js_crawl_total)
+
 

@@ -90,6 +90,26 @@
                 </div>
             </div>
 
+            <div class="col-sm-12 col-md-6 col-xl-6">
+                <div class="h-100 bg-secondary rounded p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">Total URLs Inside Sitemaps:</h6>
+                    </div>
+                    <div id="smResults">
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-12 col-md-6 col-xl-6">
+                <div class="h-100 bg-secondary rounded p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">Total URLs Inside Javascript:</h6>
+                    </div>
+                    <div id="jstotalResults">
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -231,6 +251,36 @@
                         }
 
                         imagesResults.appendChild(imagesListElement);
+                    }
+
+                    if ('sm_total' in message.results) {
+                        smResults.innerHTML = ''; // Clear previous images results
+
+                        
+                        const smListElement = document.createElement('ul');
+
+                        for (const sm of message.results.sm_total) {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = sm;
+                            smListElement.appendChild(listItem);
+                        }
+
+                        smResults.appendChild(smListElement);
+                    }
+
+                    if ('js_total' in message.results) {
+                        jstotalResults.innerHTML = ''; // Clear previous images results
+
+                        
+                        const jstotalListElement = document.createElement('ul');
+
+                        for (const smjstotal of message.results.js_total) {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = smjstotal;
+                            jstotalListElement.appendChild(listItem);
+                        }
+
+                        jstotalResults.appendChild(jstotalListElement);
                     }
                 }
 
