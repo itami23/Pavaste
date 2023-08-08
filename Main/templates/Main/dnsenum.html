@@ -82,10 +82,10 @@
                             <h6 class="mb-4">DNS Enumeration</h6>
                             <form id="dnsForm" onsubmit="return false;">
                                 {% csrf_token %}
-                                <div class="mb-3">
+                                <!-- <div class="mb-3">
                                     <label for="targetDomain" class="form-label">Target Domain</label>
                                     <input type="text" id="targetDomain" name="targetDomain" required class="form-control" autocomplete="off">
-                                </div>
+                                </div> -->
                                 <button type="button" onclick="startDNSEnumeration()" class="btn btn-success">Start DNS Enemaration</button>
                                 <button type="button" onclick="stopDNSEnumeration()" class="btn btn-primary">Stop DNS Enemaration</button>
                             </form>
@@ -117,8 +117,8 @@
             }
 
             const form = document.getElementById('dnsForm');
-            const targetDomain = form.targetDomain.value;
-
+            //const targetDomain = form.targetDomain.value;
+            const targetDomain = "deez";
             const data = {
                 target_domain: targetDomain,
             };

@@ -73,10 +73,10 @@
                     <h6 class="mb-4">WhatWeb Tool</h6>
                     <form id="whatwebForm" onsubmit="return false;">
                         {% csrf_token %}
-                        <div class="mb-3">
+                        <!-- <div class="mb-3">
                             <label for="targetUrl" class="form-label">Target URL</label>
                             <input type="text" id="targetUrl" name="targetUrl" required class="form-control" autocomplete="off">
-                        </div>
+                        </div> -->
                         <button type="button" onclick="startWhatWebTool()" class="btn btn-success">Start WhatWeb Tool</button>
                         <button type="button" onclick="stopWhatWebTool()" class="btn btn-primary">Stop WhatWeb Tool</button>
                     </form>
@@ -105,7 +105,8 @@
             }
 
             const form = document.getElementById('whatwebForm');
-            const targetUrl = form.targetUrl.value;
+            //const targetUrl = form.targetUrl.value;
+            const targetUrl = "deez";
 
             const data = {
                 url: targetUrl,

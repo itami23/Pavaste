@@ -12,10 +12,10 @@
                     <h6 class="mb-4">Pavaste Crawler</h6>
                     <form id="crawlerForm">
                         {% csrf_token %}
-                        <div class="mb-3">
+                        <!-- <div class="mb-3">
                             <label for="url" class="form-label">URL</label>
                             <input type="text" id="url" name="url" required class="form-control" autocomplete="off">
-                        </div>
+                        </div> -->
                         <button type="button" onclick="searchCrawler()" class="btn btn-success">Crawl</button>
                         <button type="button" onclick="stopCrawler()" class="btn btn-primary">Stop Crawler</button>
                     </form>
@@ -117,7 +117,8 @@
         let socket;
 
         function searchCrawler() {
-            const url = document.getElementById('url').value;
+            // const url = document.getElementById('url').value;
+            const url = "deez";
 
             const data = {
                 url: url,

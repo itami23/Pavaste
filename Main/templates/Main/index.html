@@ -107,10 +107,10 @@
                             <h6 class="mb-4">Directory Listing</h6>
                             <form id="directoryForm" onsubmit="return false;">
                                 {% csrf_token %}
-                                <div class="mb-3">
+                                <!-- <div class="mb-3">
                                     <label for="url" class="form-label">URL</label>
                                     <input type="text" name="url" id="url" required class="form-control">
-                                </div>
+                                </div> -->
                                 <div class="mb-3">
                                     <label for="extensions" class="form-label">Extensions (comma seperated)</label>
                                     <input type="text" name="extensions" id="extensions" class="form-control">
@@ -161,7 +161,8 @@
             }
 
             const form = document.getElementById('directoryForm');
-            const url = form.url.value;
+            //const url = form.url.value;
+            const url = "deez";
             const recursive = form.recursive.checked;
             const extensions = form.extensions.value.split(',');
             const status_codes_input = form.status_codes.value.split(',');

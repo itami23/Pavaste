@@ -117,7 +117,16 @@ class DirectoryListingConsumer(AsyncWebsocketConsumer):
             self.stop_requested = True
             return
         ################################
-        url = data['url']
+
+        #########################
+        # uu = self.scope["session"].get('url')
+        # print(uu)
+        ########################
+
+
+
+        #url = data['url']
+        url =self.scope["session"].get('url')
         recursive = data.get('recursive', False)
         extensions = data.get('extensions')
         status_codes = data.get('status_codes', [200])
@@ -218,8 +227,15 @@ class DNSEnumerationConsumer(AsyncWebsocketConsumer):
         pass
 
     async def receive(self, text_data):
+        #########################
+        # uu = self.scope["session"].get('url')
+        # print(uu)
+        url = self.scope["session"].get('url')
+        ########################
+
         data = json.loads(text_data)
-        target_domain = data.get('target_domain')
+        #target_domain = data.get('target_domain')
+        target_domain = url.replace("https://","")
 
         if not target_domain:
             await self.send(text_data=json.dumps({'error': 'Invalid request: target_domain is missing'}))
@@ -281,8 +297,14 @@ class WhatWebConsumer(AsyncWebsocketConsumer):
         pass
 
     async def receive(self, text_data):
+        #########################
+        # uu = self.scope["session"].get('url')
+        # print(uu)
+        ########################
+
         data = json.loads(text_data)
-        url = data.get('url', '')
+        #url = data.get('url', '')
+        url = self.scope["session"].get('url')
 
         if url:
             await self.process_url(url)
@@ -347,8 +369,15 @@ class CRTSHConsumer(AsyncWebsocketConsumer):
         pass
 
     async def receive(self, text_data):
+        #########################
+        # uu = self.scope["session"].get('url')
+        # print(uu)
+        ########################
+
         data = json.loads(text_data)
-        domain = data.get("domain")
+        url = self.scope["session"].get('url')
+        domain = url.replace("https://","")
+        #domain = data.get("domain")
 
         if domain:
             await self.search_crtsh(domain)
@@ -489,8 +518,15 @@ class SubdomainScanConsumer(AsyncWebsocketConsumer):
         pass
 
     async def receive(self, text_data):
+        #########################
+        # uu = self.scope["session"].get('url')
+        # print(uu)
+        ########################
+
         data = json.loads(text_data)
-        subdomain = data.get("subdomain")
+        url = self.scope["session"].get('url')
+        subdomain = url.replace("https://","")
+        #subdomain = data.get("subdomain")
 
         if subdomain:
             headers = await self.get_headers(subdomain)
@@ -591,9 +627,15 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
         pass
 
     async def receive(self, text_data):
+        #########################
+        # uu = self.scope["session"].get('url')
+        # print(uu)
+        ########################
+        
         data = json.loads(text_data)
-        target_url = data.get('url')
+        #target_url = data.get('url')
         #print(target_url)
+        target_url = self.scope["session"].get('url')
 
         if target_url:
             await self.crawler(target_url)
