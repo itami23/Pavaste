@@ -37,7 +37,7 @@ def main(request):
                 target = Target(url=url)
                 target.save()
             request.session['url'] = url
-            return redirect('index')
+            return redirect('dashboard')
     else:
         form = URLForm()
 
@@ -88,55 +88,205 @@ class Dashboard(View):
 ##############################################REPORT GENERATION#############################
 from django.http import HttpResponse
 from django.template.loader import get_template
-from django.shortcuts import get_object_or_404
-from reportlab.lib.pagesizes import letter, landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image
+from django.template import Context
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
 from .models import Target, DirectoryListingResult, DNSEnumerationResult, WhawebResult, CrtshResult, SubdomainScanResult, CrawlerResult
-from PIL import Image as PILImage
+from reportlab.platypus import SimpleDocTemplate, Paragraph, KeepTogether
+from reportlab.platypus import Image
+from reportlab.platypus import Table, TableStyle
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, KeepTogether, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+
+
 
 def generate_pdf_report(request, target_id):
-    target = get_object_or_404(Target, pk=target_id)
+    target = Target.objects.get(id=target_id)
+    font_size = 8
 
+    # Retrieve data from related models
+    directory_results = DirectoryListingResult.objects.filter(target=target)
+    dns_results = DNSEnumerationResult.objects.filter(target=target)
+    whaweb_results = WhawebResult.objects.filter(target=target)
+    crtsh_results = CrtshResult.objects.filter(target=target)
+    subdomain_scan_results = SubdomainScanResult.objects.filter(target=target)
+    crawler_results = CrawlerResult.objects.filter(target=target)
+
+    # Create a PDF response
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{target.url}_report.pdf"'
+    
+    # Set the filename as the target name
+    pdf_filename = f"{target.url.replace('://', '_')}_report.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{pdf_filename}"'
 
-    # Create a PDF document object
-    doc = SimpleDocTemplate(response, pagesize=landscape(letter))
-    elements = []
+    # Create a PDF document using reportlab
+    doc = SimpleDocTemplate(response, pagesize=letter)
+    story = []
 
-    # Retrieve data from models for the given target
-    # ... (same as before)
+    # Add title
+    story.append(Paragraph(f"Report for Target: {target.url}", getSampleStyleSheet()['Title']))
 
-    # Create a list of data to include in the PDF
-    data = [
-        ['Target', target.url],
-        ['Directory Results', directory_results],
-        ['DNS Results', dns_results],
-        ['Whaweb Results', whaweb_results],
-        ['Crtsh Results', crtsh_results],
-        ['Subdomain Scan Results', subdomain_scan_results],
-        ['Crawler Results', crawler_results],
-        # Add other data here...
-    ]
+    # Add directory listing results
+    story.append(Paragraph("Directory Listing Results:", getSampleStyleSheet()['Heading1']))
+    for directory_result in directory_results:
+        story.append(Paragraph(f"Directory: {directory_result.directory}", getSampleStyleSheet()['Normal']))
 
-    # Create a table and add the data
-    table = Table(data)
-    table.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), (0.6, 0.6, 0.6))]))  # Set header background color
+    # Add DNS enumeration results
+    story.append(Paragraph("DNS Enumeration Results:", getSampleStyleSheet()['Heading1']))
+    dns_data = [['Record Type', 'Records']]
+    for dns_result in dns_results:
+        record_type = dns_result.record_type
+        if record_type in ['AAAA', 'NS', 'MX', 'SOA', 'TXT']:
+            records = '\n'.join(dns_result.records)  # Use '\n' for line breaks
+        else:
+            records = ', '.join(dns_result.records)
+        dns_data.append([record_type, records])
 
-    # Add the table to the PDF document
-    elements.append(table)
+    font_size = 8
+    dns_table = Table(dns_data, colWidths=[70, 450], hAlign='LEFT')
+    dns_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0c7300')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTSIZE', (0, 0), (-1, 0), font_size),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), '#FFFFFF'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), font_size),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 1, '#000000'),
+        ('WORDWRAP', (0, 1), (-1, -1), True),  # Enable word wrapping for the data rows
 
-    # Add images from SubdomainScanResult
-    for result in subdomain_scan_results:
-        if result.screenshot:
-            pil_image = PILImage.open(result.screenshot.path)
-            img = Image(result.screenshot.path, width=300, height=200)
-            elements.append(img)
+    ]))
+
+    story.append(dns_table)
+
+
+    # Add Whaweb Results section
+    story.append(Paragraph("Whatweb Results:", getSampleStyleSheet()['Heading1']))
+    for whaweb_result in whaweb_results:
+        story.append(Paragraph("Server:", getSampleStyleSheet()['Heading4']))
+        story.append(Paragraph(whaweb_result.server, getSampleStyleSheet()['Normal']))
+        story.append(Paragraph("Technology:", getSampleStyleSheet()['Heading4']))
+        story.append(Paragraph(whaweb_result.technology, getSampleStyleSheet()['Normal']))
+        story.append(Paragraph("Title:", getSampleStyleSheet()['Heading4']))
+        story.append(Paragraph(whaweb_result.title, getSampleStyleSheet()['Normal']))
+
+        # Display Meta Tags
+        story.append(Paragraph("Meta Tags:", getSampleStyleSheet()['Heading4']))
+        for key, value in whaweb_result.meta_tags.items():
+            story.append(Paragraph(f"{key}: {value}", getSampleStyleSheet()['Normal']))
+
+        # Display Cookies
+        story.append(Paragraph("Cookies:", getSampleStyleSheet()['Heading4']))
+        for key, value in whaweb_result.cookies.items():
+            story.append(Paragraph(f"{key}: {value}", getSampleStyleSheet()['Normal']))
+
+        # Display Headers
+        story.append(Paragraph("Headers:", getSampleStyleSheet()['Heading4']))
+        for key, value in whaweb_result.headers.items():
+            story.append(Paragraph(f"{key}: {value}", getSampleStyleSheet()['Normal']))
+
+
+
+
+
+
+    # Add Crtsh Results
+    story.append(Paragraph("Crtsh Results:", getSampleStyleSheet()['Heading1']))
+    crtsh_data = []
+    for crtsh_result in crtsh_results:
+        crtsh_section = [
+            [crtsh_result.common_name, crtsh_result.issuer_organization, str(crtsh_result.not_before), str(crtsh_result.not_after)]
+        ]
+        crtsh_data.extend(crtsh_section)
+    
+
+    crtsh_table = Table(crtsh_data, colWidths=[125, 100, 125, 125], hAlign='LEFT')
+    crtsh_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0c7300')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), font_size),  # Apply font size to the header row
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), '#FFFFFF'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), font_size),  # Apply font size to the data rows
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 1, '#000000'),
+        ('WORDWRAP', (0, 1), (-1, -1), True),
+    ]))
+
+    story.append(crtsh_table)
+
+
+    ###SUBDOMAIN SECTION
+    story.append(Paragraph("Subdomain Scan Results:", getSampleStyleSheet()['Heading1']))
+    for subdomain_result in subdomain_scan_results:
+        subdomain_section = [
+            Paragraph("Subdomain:", getSampleStyleSheet()['Heading4']),
+            Paragraph(subdomain_result.subdomain, getSampleStyleSheet()['Normal']),
+            Paragraph("Headers:", getSampleStyleSheet()['Heading4']),
+        ]
+
+        # Convert headers dictionary into a list of tuples for table data
+        headers_data = list(subdomain_result.headers.items())
+
+        if headers_data:
+            headers_table_data = [
+                ['Header Name', 'Header Value']
+            ] + headers_data
+
+            # Create a table for headers
+            headers_table = Table(headers_table_data, colWidths=[200, 250], hAlign='LEFT')
+            headers_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0c7300')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTSIZE', (0, 0), (-1, 0), font_size),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), font_size),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ]))
+
+            subdomain_section.append(headers_table)
+        else:
+            subdomain_section.append(Paragraph("No headers available.", getSampleStyleSheet()['Normal']))
+
+        # ... Other sections ...
+
+        # Display screenshot (if available)
+        if subdomain_result.screenshot:
+            screenshot_path = subdomain_result.screenshot.path
+            screenshot_img = Image(screenshot_path, width=400, height=300)  # Adjust width and height as needed
+            subdomain_section.append(Paragraph("Screenshot:", getSampleStyleSheet()['Heading4']))
+            subdomain_section.append(screenshot_img)
+
+        subdomain_section.extend([
+            Paragraph("Nmap Results:", getSampleStyleSheet()['Heading4']),
+            Paragraph(str(subdomain_result.nmap_results), getSampleStyleSheet()['Normal'])
+        ])
+
+        story.extend(subdomain_section)   # Add the elements directly to the story
+
+
+    # ... Add other sections and models similarly ...
 
     # Build the PDF document
-    doc.build(elements)
-
+    doc.build(story)
     return response
+
 
 ##########################################################################################
 
