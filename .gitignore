@@ -1,0 +1,7 @@
+# .gitignore
+
+# Database files
+db.sqlite3
+
+# Database migration files
+**/migrations/

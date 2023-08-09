@@ -1,3 +1,5 @@
+from .models import *
+from asgiref.sync import sync_to_async
 ############################################################THIS IS ITTTTTTTTTTTTTTTTTTTTTTTTTTT###########################################################
 
 
@@ -123,8 +125,6 @@ class DirectoryListingConsumer(AsyncWebsocketConsumer):
         # print(uu)
         ########################
 
-
-
         #url = data['url']
         url =self.scope["session"].get('url')
         recursive = data.get('recursive', False)
@@ -175,6 +175,14 @@ class DirectoryListingConsumer(AsyncWebsocketConsumer):
                             if status_code is not None and status_code in status_codes:
                                 if extensions is None or any(dir_url.endswith(ext) for ext in extensions):
                                     print(f"[FOUND] {dir_url}")
+
+                                    #################Save The Results To The Database###############
+                                    if DirectoryListingResult.objects.filter(target=url):
+                                        pass
+                                    else:
+                                        result = DirectoryListingResult(target=url, directory=dir_url)
+                                        result.save()
+
                                     await self.send(text_data=json.dumps({'directory': dir_url}))
 
                             if recursive and status_code == 200 and response_text is not None:
@@ -200,11 +208,10 @@ class DirectoryListingConsumer(AsyncWebsocketConsumer):
 
 
 ###########################################################################DNS ENUMERATION SECTION########################################################
-# dns_enumeration/consumers.py
-
 import dns.resolver
 import json
 import asyncio
+from asgiref.sync import sync_to_async
 
 class DNSEnumerationConsumer(AsyncWebsocketConsumer):
     record_types = ['A', 'AAAA', 'NS', 'CNAME', 'MX', 'PTR', 'SOA', 'TXT']
@@ -228,14 +235,11 @@ class DNSEnumerationConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         #########################
-        # uu = self.scope["session"].get('url')
-        # print(uu)
         url = self.scope["session"].get('url')
         ########################
 
         data = json.loads(text_data)
-        #target_domain = data.get('target_domain')
-        target_domain = url.replace("https://","")
+        target_domain = url.replace("https://", "")
 
         if not target_domain:
             await self.send(text_data=json.dumps({'error': 'Invalid request: target_domain is missing'}))
@@ -251,7 +255,7 @@ class DNSEnumerationConsumer(AsyncWebsocketConsumer):
 
         #########################################
         if not self.client_connected:
-            print("Consumer Stoped")
+            print("Consumer Stopped")
             return
         #########################################
 
@@ -264,6 +268,19 @@ class DNSEnumerationConsumer(AsyncWebsocketConsumer):
                         record_list.append(answer.to_text())
 
                     results[record_type] = record_list
+
+                    # Save results in the database
+                    aa = f"https://{domain}"
+                    target_instance = await sync_to_async(Target.objects.get)(url=aa)
+                    if not await sync_to_async(DNSEnumerationResult.objects.filter(target=target_instance, record_type=record_type).exists)():
+                        result = DNSEnumerationResult(
+                            target=target_instance,
+                            record_type=record_type,
+                            records=record_list
+                        )
+                        await sync_to_async(result.save)()
+                    else : 
+                        print("ALREADY EXISTS")
 
                 except dns.resolver.NoAnswer:
                     pass
@@ -281,9 +298,7 @@ class DNSEnumerationConsumer(AsyncWebsocketConsumer):
 
 
 
-
 ################################################################WHATWEB###################################
-# WhatWebApp/consumers.py
 import json
 import requests
 from bs4 import BeautifulSoup
@@ -343,6 +358,26 @@ class WhatWebConsumer(AsyncWebsocketConsumer):
                     'cookies': cookies,
                     'headers': dict(headers)
                 }
+
+
+                ##########SAVE THE RESULTS TO THE DATABASE########################
+                target_instance = await sync_to_async(Target.objects.get)(url=url)
+                if not await sync_to_async(WhawebResult.objects.filter(target=target_instance).exists)():
+                    whatweb_result = WhawebResult(
+                        target=target_instance,
+                        server=server,
+                        technology=technology,
+                        title=title,
+                        meta_tags=meta_tags,
+                        cookies=cookies,
+                        headers=dict(headers),
+                    )
+                    await sync_to_async(whatweb_result.save)()
+                else : 
+                    print("ALREADY EXISTS")
+
+                ###################################################################
+
 
                 json_data = json.dumps(result, indent=4)
                 await self.send(text_data=json_data)
@@ -420,6 +455,26 @@ class CRTSHConsumer(AsyncWebsocketConsumer):
                 for extension in extensions:
                     if "key" in extension and extension["key"] == "2.5.29.17":
                         matching_identities = extension.get("value", "").split(",")
+
+
+
+            ##########SAVE THE RESULTS TO THE DATABASE########################
+            aa = f"https://{domain}"
+            target_instance = await sync_to_async(Target.objects.get)(url=aa)
+            if not await sync_to_async(CrtshResult.objects.filter(common_name=common_name).exists)():
+                crtsh_result = CrtshResult(
+                    target=target_instance,
+                    common_name=common_name,
+                    issuer_organization=issuer_organization,
+                    not_before=not_before,
+                    not_after=not_after,
+                )
+                await sync_to_async(crtsh_result.save)()
+            else : 
+                print("ALREADY EXISTS")
+
+            ###################################################################
+
 
             certificate_info = {
                 "Common Name": common_name,
@@ -541,6 +596,25 @@ class SubdomainScanConsumer(AsyncWebsocketConsumer):
                 "screenshot": screenshot_path,
                 "nmap_results": nmap_results,
             }
+
+
+            ##########SAVE THE RESULTS TO THE DATABASE########################
+            aa = f"https://{subdomain}"
+            target_instance = await sync_to_async(Target.objects.get)(url=url)
+            if not await sync_to_async(SubdomainScanResult.objects.filter(subdomain=subdomain).exists)():
+                subdomainscan_result = SubdomainScanResult(
+                    target=target_instance,
+                    subdomain=subdomain,
+                    headers=dict(headers),
+                    screenshot=screenshot_path,
+                    nmap_results=dict(nmap_results),
+                )
+                await sync_to_async(subdomainscan_result.save)()
+            else : 
+                print("ALREADY EXISTS")
+
+            ###################################################################
+
 
             await self.send(text_data=json.dumps(response_data))
         else:
@@ -697,6 +771,30 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
             response_data['results']['images'] = await self.images(soup,target)
             response_data['results']['sm_total']=await self.sm_crawl()
             response_data['results']['js_total']=await self.js_crawl()
+
+
+
+            ##########SAVE THE RESULTS TO THE DATABASE########################
+            target_instance = await sync_to_async(Target.objects.get)(url=target)
+            if not await sync_to_async(CrawlerResult.objects.filter(target=target_instance).exists)():
+                crawler_result = CrawlerResult(
+                    target=target_instance,
+                    robots_results=response_data['results']['robots'],
+                    sitemap_results=response_data['results']['sitemap'],
+                    css_results=response_data['results']['css'],
+                    js_results=response_data['results']['js'],
+                    internal_links=response_data['results']['internal_links'],
+                    external_links=response_data['results']['external_links'],
+                    image_links=response_data['results']['images'],
+                    crawled_sitemap_links=response_data['results']['sm_total'],
+                    crawled_js_links=response_data['results']['js_total'],
+                )
+                await sync_to_async(crawler_result.save)()
+            else : 
+                print("ALREADY EXISTS")
+
+            ###################################################################
+
 
             await self.send_crawler_results(response_data)
         else:
@@ -946,5 +1044,6 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
             thread.join()
         
         return list(self.js_crawl_total)
+
 
 

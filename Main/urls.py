@@ -8,4 +8,8 @@ urlpatterns = [
     path('crtsh/',views.crtsh,name="crtsh"),
     path('subdomainscan/',views.subdomainscan,name="subdomainscan"),
     path('crawler/',views.crawler,name='crawler'),
+    path('dashboard/',views.Dashboard.as_view(),name='dashboard'),
+    ###################REPORT GENERATING##############################
+    path('generate-pdf-report/<int:target_id>/', generate_pdf_report, name='generate_pdf_report'),
+    ##################################################################
 ]
