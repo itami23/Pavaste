@@ -12,4 +12,5 @@ urlpatterns = [
     ###################REPORT GENERATING##############################
     path('generate-pdf-report/<int:target_id>/', views.generate_pdf_report, name='generate_pdf_report'),
     ##################################################################
+    path('target_details/<target_id>/',views.TargetInfo.as_view(),name='target_details'),
 ]

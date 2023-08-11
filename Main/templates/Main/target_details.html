@@ -1,0 +1,463 @@
+{% extends 'All/base.html' %}
+{% load static%}
+{% block title %}
+    {{target}}
+{% endblock %}
+
+{% block content %}
+     <!-- Sale & Revenue Start -->
+    <div class="container-fluid pt-4 px-4">
+        <div class="row g-4">
+            <div class="col-sm-6 col-xl-3">
+                <div class="bg-secondary rounded d-flex align-items-center justify-content-between p-4">
+                    <i class="fa fa-bullseye fa-3x text-primary"></i>
+                    <div class="ms-3">
+                        <p class="mb-2">Target</p>
+                        <h6 class="mb-0">{{target.url}}</h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div class="container-fluid pt-4 px-4">
+        <!-- Directory Listing Results Table -->
+
+
+
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card bg-secondary">
+                    <div class="card-header">
+                        Directory Listing Results
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-dark table-bordered">
+                            <thead>
+                                <tr>
+                                    <th style="color : red">Directory</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for directory_result in directory_results %}
+                                <tr>
+                                    <td>{{ directory_result.directory }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DNS Results Table -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card bg-secondary">
+                    <div class="card-header">
+                        DNS Results
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-dark table-bordered">
+                            <thead>
+                                <tr>
+                                    <th style="color : red">Record Type</th>
+                                    <th style="color : red">Records</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for dns_result in dns_results %}
+                                <tr>
+                                    <td>{{ dns_result.record_type }}</td>
+                                    <td>
+                                        {% for record in dns_result.records %}
+                                            {{ record }}<br>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+
+
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card bg-secondary">
+                    <div class="card-header">
+                        Whatweb Results
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-dark table-bordered">
+                            <thead>
+                                <tr>
+                                    <th style="color : red">Server</th>
+                                    <th style="color : red">Technology</th>
+                                    <th style="color : red">Title</th>
+                                    <th style="color : red">Meta Tags</th>
+                                    <th style="color : red">Cookies</th>
+                                    <th style="color : red">Headers</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for whaweb_result in whaweb_results %}
+                                <tr>
+                                    <td>{{ whaweb_result.server }}</td>
+                                    <td>{{ whaweb_result.technology }}</td>
+                                    <td>{{ whaweb_result.title }}</td>
+                                    <td>
+                                        {% if whaweb_result.meta_tags %}
+                                            {% for key, value in whaweb_result.meta_tags.items %}
+                                                <strong>{{ key }}:</strong> {{ value }}<br>
+                                            {% endfor %}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if whaweb_result.cookies %}
+                                            {% for key, value in whaweb_result.cookies.items %}
+                                                <strong>{{ key }}:</strong> {{ value }}<br>
+                                            {% endfor %}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if whaweb_result.headers %}
+                                            {% for key, value in whaweb_result.headers.items %}
+                                                <strong>{{ key }}:</strong> {{ value }}<br>
+                                            {% endfor %}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- CRTSH Results Table -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card bg-secondary">
+                    <div class="card-header">
+                        CRTSH Results
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-dark table-bordered">
+                            <thead>
+                                <tr>
+                                    <th style="color : red">Common Name</th>
+                                    <th style="color : red">Issuer Organization</th>
+                                    <th style="color : red">Not Before</th>
+                                    <th style="color : red">Not After</th>
+                                    <th style="color : red">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for crtsh_result in crtsh_results %}
+                                <tr>
+                                    <td>{{ crtsh_result.common_name }}</td>
+                                    <td>{{ crtsh_result.issuer_organization }}</td>
+                                    <td>{{ crtsh_result.not_before }}</td>
+                                    <td>{{ crtsh_result.not_after }}</td>
+                                    <td><a class="btn btn-sm btn-primary" href="{% url '' %}">Scan</a></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- Crawler Results -->
+       <!--  <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card bg-secondary">
+                    <div class="card-header">
+                        Crawler Results
+                    </div>
+                    <div class="card-body">
+                        {% if crawler_results %}
+                        <h5>Robots Results:</h5>
+                        <ul>
+                            {% for item in crawler_results.robots_results %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        <h5>Sitemap Results:</h5>
+                        <ul>
+                            {% for item in crawler_results.sitemap_results %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        <h5>CSS Results:</h5>
+                        <ul>
+                            {% for item in crawler_results.css_results %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        <h5>JS Results:</h5>
+                        <ul>
+                            {% for item in crawler_results.js_results %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        <h5>Internal Links:</h5>
+                        <ul>
+                            {% for item in crawler_results.internal_links %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        <h5>External Links:</h5>
+                        <ul>
+                            {% for item in crawler_results.external_links %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        <h5>Image Links:</h5>
+                        <ul>
+                            {% for item in crawler_results.image_links %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        <h5>Crawled Sitemap Links:</h5>
+                        <ul>
+                            {% for item in crawler_results.crawled_sitemap_links %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        <h5>Crawled JS Links:</h5>
+                        <ul>
+                            {% for item in crawler_results.crawled_js_links %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p>No crawler results available.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+ -->
+
+
+
+
+
+                        <div class="bg-secondary rounded h-100 p-4">
+                            <h6 class="mb-4">Crawler Results</h6>
+                            {% if crawler_results %}
+                            <div class="accordion" id="accordionExample">
+                                <div class="accordion-item bg-transparent">
+                                    <h2 class="accordion-header" id="headingOne">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#collapseOne" aria-expanded="true"
+                                            aria-controls="collapseOne">
+                                            Robots Results:
+                                        </button>
+                                    </h2>
+                                    <div id="collapseOne" class="accordion-collapse collapse show"
+                                        aria-labelledby="headingOne" data-bs-parent="#accordionExample">
+                                        <div class="accordion-body">
+                                            <ul>
+                                                {% for item in crawler_results.robots_results %}
+                                                <li>{{ item }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="accordion-item bg-transparent">
+                                    <h2 class="accordion-header" id="headingTwo">
+                                        <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#collapseTwo"
+                                            aria-expanded="false" aria-controls="collapseTwo">
+                                            Sitemap Results:
+                                        </button>
+                                    </h2>
+                                    <div id="collapseTwo" class="accordion-collapse collapse"
+                                        aria-labelledby="headingTwo" data-bs-parent="#accordionExample">
+                                        <div class="accordion-body">
+                                            <ul>
+                                                {% for item in crawler_results.sitemap_results %}
+                                                <li>{{ item }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="accordion-item bg-transparent">
+                                    <h2 class="accordion-header" id="headingThree">
+                                        <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#collapseThree"
+                                            aria-expanded="false" aria-controls="collapseThree">
+                                            CSS Results
+                                        </button>
+                                    </h2>
+                                    <div id="collapseThree" class="accordion-collapse collapse"
+                                        aria-labelledby="headingThree" data-bs-parent="#accordionExample">
+                                        <div class="accordion-body">
+                                            <ul>
+                                                {% for item in crawler_results.css_results %}
+                                                <li>{{ item }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="accordion-item bg-transparent">
+                                    <h2 class="accordion-header" id="headingThree">
+                                        <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#collapseFour"
+                                            aria-expanded="false" aria-controls="collapseFour">
+                                            JS Results :
+                                        </button>
+                                    </h2>
+                                    <div id="collapseFour" class="accordion-collapse collapse"
+                                        aria-labelledby="headingThree" data-bs-parent="#accordionExample">
+                                        <div class="accordion-body">
+                                            <ul>
+                                                {% for item in crawler_results.js_results %}
+                                                <li>{{ item }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="accordion-item bg-transparent">
+                                    <h2 class="accordion-header" id="headingThree">
+                                        <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#collapseFive"
+                                            aria-expanded="false" aria-controls="collapseFive">
+                                            Internal Links :
+                                        </button>
+                                    </h2>
+                                    <div id="collapseFive" class="accordion-collapse collapse"
+                                        aria-labelledby="headingThree" data-bs-parent="#accordionExample">
+                                        <div class="accordion-body">
+                                            <ul>
+                                                {% for item in crawler_results.internal_links %}
+                                                <li>{{ item }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="accordion-item bg-transparent">
+                                    <h2 class="accordion-header" id="headingThree">
+                                        <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#collapseSix"
+                                            aria-expanded="false" aria-controls="collapseSix">
+                                            External Links :
+                                        </button>
+                                    </h2>
+                                    <div id="collapseSix" class="accordion-collapse collapse"
+                                        aria-labelledby="headingThree" data-bs-parent="#accordionExample">
+                                        <div class="accordion-body">
+                                            <ul>
+                                                {% for item in crawler_results.external_links %}
+                                                <li>{{ item }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="accordion-item bg-transparent">
+                                    <h2 class="accordion-header" id="headingThree">
+                                        <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#collapseSeven"
+                                            aria-expanded="false" aria-controls="collapseSeven">
+                                            Image Links :
+                                        </button>
+                                    </h2>
+                                    <div id="collapseSeven" class="accordion-collapse collapse"
+                                        aria-labelledby="headingThree" data-bs-parent="#accordionExample">
+                                        <div class="accordion-body">
+                                            <ul>
+                                                {% for item in crawler_results.image_links %}
+                                                <li>{{ item }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="accordion-item bg-transparent">
+                                    <h2 class="accordion-header" id="headingThree">
+                                        <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#collapseEight"
+                                            aria-expanded="false" aria-controls="collapseEight">
+                                            Crawled Sitemap Links :
+                                        </button>
+                                    </h2>
+                                    <div id="collapseEight" class="accordion-collapse collapse"
+                                        aria-labelledby="headingThree" data-bs-parent="#accordionExample">
+                                        <div class="accordion-body">
+                                            <ul>
+                                                {% for item in crawler_results.crawled_sitemap_links %}
+                                                <li>{{ item }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="accordion-item bg-transparent">
+                                    <h2 class="accordion-header" id="headingThree">
+                                        <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#collapseNine"
+                                            aria-expanded="false" aria-controls="collapseNine">
+                                            Crawled JS Links :
+                                        </button>
+                                    </h2>
+                                    <div id="collapseNine" class="accordion-collapse collapse"
+                                        aria-labelledby="headingThree" data-bs-parent="#accordionExample">
+                                        <div class="accordion-body">
+                                            <ul>
+                                                {% for item in crawler_results.crawled_js_links %}
+                                                <li>{{ item }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {%endif%}
+                        </div>
+
+
+
+        <!-- Other Result Tables... -->
+    </div>
+
+    <script>
+    </script>
+{% endblock %}

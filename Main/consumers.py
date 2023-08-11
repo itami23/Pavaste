@@ -573,52 +573,47 @@ class SubdomainScanConsumer(AsyncWebsocketConsumer):
         pass
 
     async def receive(self, text_data):
-        #########################
-        # uu = self.scope["session"].get('url')
-        # print(uu)
-        ########################
+        try:
+            data = json.loads(text_data)
+            url = self.scope["session"].get('url')
+            subdomain = url.replace("https://","")
+            #subdomain = data.get("subdomain")
 
-        data = json.loads(text_data)
-        url = self.scope["session"].get('url')
-        subdomain = url.replace("https://","")
-        #subdomain = data.get("subdomain")
+            if subdomain:
+                headers = await self.get_headers(subdomain)
+                screenshot_path = await self.take_screenshot(subdomain)
+                nmap_results = await self.run_nmap_scan(subdomain)
 
-        if subdomain:
-            headers = await self.get_headers(subdomain)
-            screenshot_path = await self.take_screenshot(subdomain)
-            nmap_results = await self.run_nmap_scan(subdomain)
+                # Convert headers to a regular dictionary
+                headers_dict = dict(headers)
 
-            # Convert headers to a regular dictionary
-            headers_dict = dict(headers)
+                response_data = {
+                    "headers": headers_dict,
+                    "screenshot": screenshot_path,
+                    "nmap_results": nmap_results,
+                }
 
-            response_data = {
-                "headers": headers_dict,
-                "screenshot": screenshot_path,
-                "nmap_results": nmap_results,
-            }
+                ##########SAVE THE RESULTS TO THE DATABASE########################
+                aa = f"https://{subdomain}"
+                target_instance = await sync_to_async(Target.objects.get)(url=url)
+                if not await sync_to_async(SubdomainScanResult.objects.filter(subdomain=subdomain).exists)():
+                    subdomainscan_result = SubdomainScanResult(
+                        target=target_instance,
+                        subdomain=subdomain,
+                        headers=dict(headers),
+                        screenshot=screenshot_path,
+                        nmap_results=dict(nmap_results),
+                    )
+                    await sync_to_async(subdomainscan_result.save)()
+                else: 
+                    print("ALREADY EXISTS")
+                ###################################################################
 
-
-            ##########SAVE THE RESULTS TO THE DATABASE########################
-            aa = f"https://{subdomain}"
-            target_instance = await sync_to_async(Target.objects.get)(url=url)
-            if not await sync_to_async(SubdomainScanResult.objects.filter(subdomain=subdomain).exists)():
-                subdomainscan_result = SubdomainScanResult(
-                    target=target_instance,
-                    subdomain=subdomain,
-                    headers=dict(headers),
-                    screenshot=screenshot_path,
-                    nmap_results=dict(nmap_results),
-                )
-                await sync_to_async(subdomainscan_result.save)()
-            else : 
-                print("ALREADY EXISTS")
-
-            ###################################################################
-
-
-            await self.send(text_data=json.dumps(response_data))
-        else:
-            await self.send(text_data=json.dumps({"error": "Subdomain is required."}))
+                await self.send(text_data=json.dumps(response_data))
+            else:
+                await self.send(text_data=json.dumps({"error": "Subdomain is required."}))
+        except Exception as e:
+            await self.send(text_data=json.dumps({"error": str(e)}))
 
     async def get_headers(self, subdomain):
         url = f"http://{subdomain}"
@@ -877,16 +872,17 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
                     return list(self.r_total) # Convert set to list before returning
 
                 else : 
-                    return json.dumps("mynigga")
+                    return list()
+
                 
 
             elif r_sc == 404:
-                await self.send_error_message("404 MY  NIGGA")
+                return list()
                 
             else:
-                await self.send_error_message("ERRRROOORRR")
+                return list("Error fetching robots.txt")
         except Exception as e:
-            await self.send_error_message(str(e))  # Convert the exception to a string
+            return str(e)  # Convert the exception to a string
 
     async def sitemap(self , sm_url):
         #sm_total = []
@@ -904,13 +900,17 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
                         self.sm_total.append(url)
 
                 #print(self.sm_total)
-                return list(self.sm_total)
+                if self.sm_total:
+                    return list(self.sm_total)
+
+                else : 
+                    return list()
 
                 
             elif sm_sc == 404:
-                await self.send_error_message("404 MY  NIGGA")
+                return list()
             else:
-                await self.send_error_message("ERRRROOORRR")
+                return list("Error fetching sitemaps")
         except Exception as e:
             await self.send_error_message(str(e))
 
@@ -1047,3 +1047,119 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
 
 
 
+
+
+
+
+############################################
+# import socket
+# import asyncio
+# from datetime import date
+# from channels.generic.websocket import AsyncWebsocketConsumer
+# import aiohttp
+
+# R = '\033[31m'  # red
+# G = '\033[32m'  # green
+# C = '\033[36m'  # cyan
+# W = '\033[0m'   # white
+# Y = '\033[33m'  # yellow
+
+# header = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:72.0) Gecko/20100101 Firefox/72.0'}
+# curr_yr = date.today().year
+# last_yr = curr_yr - 1
+
+# class DirectoryEnumConsumer(AsyncWebsocketConsumer):
+#     async def connect(self):
+#         await self.accept()
+
+#     async def disconnect(self, close_code):
+#         pass
+
+#     async def receive(self, text_data):
+#         data = json.loads(text_data)
+#         target = data['target']
+#         threads = data['threads']
+#         tout = data['timeout']
+#         wdlist = data['wordlist']
+#         redir = data['allow_redirects']
+#         sslv = data['ssl_verification']
+#         dserv = data['dns_servers']
+#         output = data['output']
+#         filext = data['file_extensions']
+
+#         await self.process_directory_enum(target, threads, tout, wdlist, redir, sslv, dserv, output, filext)
+
+#     async def process_directory_enum(self, target, threads, tout, wdlist, redir, sslv, dserv, output, filext):
+#         queue = asyncio.Queue()
+
+#         resolver = aiohttp.AsyncResolver(nameservers=dserv.split(', '))
+#         conn = aiohttp.TCPConnector(limit=threads, resolver=resolver, family=socket.AF_INET, verify_ssl=sslv)
+#         timeout = aiohttp.ClientTimeout(total=None, sock_connect=tout, sock_read=tout)
+
+#         async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
+#             distrib = asyncio.create_task(self.insert(queue, filext, target, wdlist, redir))
+#             workers = [
+#                 asyncio.create_task(self.consumer(queue, target, session, redir))
+#                 for _ in range(threads)
+#             ]
+
+#             await asyncio.gather(distrib)
+#             await queue.join()
+
+#             for worker in workers:
+#                 worker.cancel()
+
+#         self.dir_output(output)
+
+#     async def fetch(self, url, session, redir):
+#         try:
+#             async with session.get(url, headers=header, allow_redirects=redir) as response:
+#                 return response.status
+#         except Exception as e:
+#             print(f'{R}[-] {C}Exception : {W}' + str(e).strip('\n'))
+
+#     async def insert(self, queue, filext, target, wdlist, redir):
+#         if len(filext) == 0:
+#             url = target + '/{}'
+#             with open(wdlist, 'r') as wordlist:
+#                 for word in wordlist:
+#                     word = word.strip()
+#                     await queue.put([url.format(word), redir])
+#                     await asyncio.sleep(0)
+#         else:
+#             filext = ',' + filext
+#             filext = filext.split(',')
+#             with open(wdlist, 'r') as wordlist:
+#                 for word in wordlist:
+#                     for ext in filext:
+#                         ext = ext.strip()
+#                         if len(ext) == 0:
+#                             url = target + '/{}'
+#                         else:
+#                             url = target + '/{}.' + ext
+#                         word = word.strip()
+#                         await queue.put([url.format(word), redir])
+#                         await asyncio.sleep(0)
+
+#     async def consumer(self, queue, target, session, redir):
+#         while True:
+#             values = await queue.get()
+#             url = values[0]
+#             redir = values[1]
+#             status = await self.fetch(url, session, redir)
+#             await self.filter_out(target, url, status)
+#             queue.task_done()
+
+#     async def filter_out(self, target, url, status):
+#         if status in {200}:
+#             if str(url) != target + '/':
+#                 await self.send(f'{G}{status} {C}|{W} {url}')
+#         elif status in {301, 302, 303, 307, 308}:
+#             await self.send(f'{Y}{status} {C}|{W} {url}')
+#         elif status in {403}:
+#             await self.send(f'{R}{status} {C}|{W} {url}')
+
+#     async def dir_output(self, output):
+#         # Implement the dir_output function logic here
+#         pass
+################################################
