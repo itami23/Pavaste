@@ -62,8 +62,10 @@
         function scanSubdomain() {
             //const subdomain = subdomainForm.subdomain.value;
             const subdomain = "deez";
+            const subdomainId = {{ subdomain_id }};
             const data = {
                 subdomain: subdomain,
+                subdomain_id : subdomainId
             };
 
             const socket = new WebSocket('ws://' + window.location.host + '/ws/subdomain_scan/');
@@ -95,9 +97,13 @@
                     screenshotResults.innerHTML = '';
                     const screenshotImage = document.createElement('img');
                     const path=message.screenshot
-                    screenshotImage.src = `{{MEDIA_URL}}${path}`;
-                    screenshotImage.style.maxWidth = '100%';
-                    screenshotResults.appendChild(screenshotImage);
+                    if(message.screenshot)
+                    {
+                        screenshotImage.src = `{{MEDIA_URL}}${path}`;
+                        screenshotImage.style.maxWidth = '100%';
+                        screenshotResults.appendChild(screenshotImage);
+                    }
+                    
 
                     // // Display Nmap results
                     nmapResults.innerHTML = '';

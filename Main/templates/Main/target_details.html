@@ -178,7 +178,7 @@
                                     <td>{{ crtsh_result.issuer_organization }}</td>
                                     <td>{{ crtsh_result.not_before }}</td>
                                     <td>{{ crtsh_result.not_after }}</td>
-                                    <td><a class="btn btn-sm btn-primary" href="{% url '' %}">Scan</a></td>
+                                    <td><a class="btn btn-sm btn-primary" href="{% url 'subdomainscan' crtsh_result.id %}">Scan</a><a class="btn btn-sm btn-success" href="{% url 'subdomain_details' crtsh_result.id %}">View</a></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

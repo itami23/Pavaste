@@ -36,8 +36,11 @@ def whatweb_tool_view(request):
 def crtsh(request):
     return render(request, 'Main/crtsh.html')
 
-def subdomainscan(request):
-    return render(request, 'Main/subdomainscan.html')
+def subdomainscan(request,subdomain_id):
+    context = {
+        'subdomain_id': subdomain_id,
+    }
+    return render(request, 'Main/subdomainscan.html',context)
 
 def crawler(request):
     return render(request, 'Main/crawler.html')
@@ -325,3 +328,16 @@ class TargetInfo(View):
 
 
 
+class SubdomainInfo(View):
+    def get(self,request,*args,**kwargs):
+        try:
+            subdomain_id = self.kwargs.get('subdomain_id')
+            subdomain_instance = CrtshResult.objects.get(pk=subdomain_id)
+            subdomain = SubdomainScanResult.objects.get(subdomain = subdomain_instance.common_name)
+            context = {
+                'subdomain' : subdomain,
+            }
+
+            return render(request, 'Main/subdomain_details.html', context)
+        except SubdomainScanResult.DoesNotExist:
+            return render(request, 'All/404.html')

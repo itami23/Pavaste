@@ -1,0 +1,77 @@
+{% extends 'All/base.html' %}
+{% load static %}
+
+{% block title %}
+    {{ subdomain.subdomain }}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid pt-4 px-4">
+    <div class="row g-4">
+        <div class="col-sm-12 col-md-6 col-xl-12">
+            <div class="h-100 bg-secondary rounded p-4">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 class="mb-0">Headers:</h6>
+                </div>
+                <div id="headerResults">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th style="color : red">Key</th>
+                                <th style="color : red">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for key, value in subdomain.headers.items %}
+                            <tr>
+                                <td>{{ key }}</td>
+                                <td>{{ value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-12 col-md-6 col-xl-12 mt-4">
+            <div class="h-100 bg-secondary rounded p-4">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 class="mb-0">Screenshot:</h6>
+                </div>
+                <div id="screenshotResults">
+                    <img src="{{ subdomain.screenshot.url }}" alt="Screenshot">
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-12 col-md-6 col-xl-12 mt-4">
+            <div class="h-100 bg-secondary rounded p-4">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 class="mb-0">Nmap Scan:</h6>
+                </div>
+                <div id="nmapResults">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th style="color : red">Port</th>
+                                <th style="color : red">Service</th>
+                                <!-- Add more headers as needed -->
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for port, service in subdomain.nmap_results.items %}
+                            <tr>
+                                <td>{{ port }}</td>
+                                <td>{{ service }}</td>
+                                <!-- Add more table cells for other data if required -->
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

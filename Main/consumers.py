@@ -131,7 +131,7 @@ class DirectoryListingConsumer(AsyncWebsocketConsumer):
         extensions = data.get('extensions')
         status_codes = data.get('status_codes', [200])
         timeout = data.get('timeout', 5)
-        wordlist = '/home/itami/Desktop/Projects/PavasteScripts/scripts/dir.txt'
+        wordlist = 'constants/dir.txt'
 
         # Create a set to store the visited URLs to avoid duplicates
         visited_urls = set()
@@ -576,13 +576,18 @@ class SubdomainScanConsumer(AsyncWebsocketConsumer):
         try:
             data = json.loads(text_data)
             url = self.scope["session"].get('url')
+            subdomain_id = data.get("subdomain_id")
             subdomain = url.replace("https://","")
             #subdomain = data.get("subdomain")
+            subdomain_instance = await sync_to_async(CrtshResult.objects.get)(id=subdomain_id)
 
-            if subdomain:
-                headers = await self.get_headers(subdomain)
-                screenshot_path = await self.take_screenshot(subdomain)
-                nmap_results = await self.run_nmap_scan(subdomain)
+            if subdomain_instance:
+                headers = await self.get_headers(subdomain_instance.common_name)
+                screenshot_path = await self.take_screenshot(subdomain_instance.common_name)
+                nmap_results = await self.run_nmap_scan(subdomain_instance.common_name)
+
+                if isinstance(screenshot_path, dict) and "error" in screenshot_path:
+                    screenshot_path = None
 
                 # Convert headers to a regular dictionary
                 headers_dict = dict(headers)
@@ -595,12 +600,16 @@ class SubdomainScanConsumer(AsyncWebsocketConsumer):
 
                 ##########SAVE THE RESULTS TO THE DATABASE########################
                 aa = f"https://{subdomain}"
-                target_instance = await sync_to_async(Target.objects.get)(url=url)
-                if not await sync_to_async(SubdomainScanResult.objects.filter(subdomain=subdomain).exists)():
+                target_instance = await sync_to_async(Target.objects.get)(pk=subdomain_instance.target_id)
+                print(headers_dict)
+                print('------------------')
+                print(dict(nmap_results))
+                print(screenshot_path)
+                if not await sync_to_async(SubdomainScanResult.objects.filter(subdomain=subdomain_instance.common_name).exists)():
                     subdomainscan_result = SubdomainScanResult(
                         target=target_instance,
-                        subdomain=subdomain,
-                        headers=dict(headers),
+                        subdomain=subdomain_instance.common_name,
+                        headers=headers_dict,
                         screenshot=screenshot_path,
                         nmap_results=dict(nmap_results),
                     )
@@ -608,11 +617,12 @@ class SubdomainScanConsumer(AsyncWebsocketConsumer):
                 else: 
                     print("ALREADY EXISTS")
                 ###################################################################
-
+                print("bbb")
                 await self.send(text_data=json.dumps(response_data))
             else:
                 await self.send(text_data=json.dumps({"error": "Subdomain is required."}))
         except Exception as e:
+            print("deez")
             await self.send(text_data=json.dumps({"error": str(e)}))
 
     async def get_headers(self, subdomain):
