@@ -4,10 +4,6 @@ import json
 from .forms import *
 from .models import *
 from django.views import View
-
-
-
-from django.http import HttpResponse
 from django.template.loader import get_template
 from django.template import Context
 from reportlab.lib.pagesizes import letter
@@ -23,27 +19,36 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, KeepTogethe
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 
-def index(request):
-    return render(request, 'Main/index.html')
 
 
-def dns_enumeration(request):
-    return render(request, 'Main/dnsenum.html')
+class dirb(View):
+    def get(self,request,*args,**kwargs):
+        return render(request, 'Main/index.html')
 
-def whatweb_tool_view(request):
-    return render(request, 'Main/whatweb_tool.html')
 
-def crtsh(request):
-    return render(request, 'Main/crtsh.html')
+class dns_enumeration(View):
+    def get(self,request,*args,**kwargs):
+        return render(request, 'Main/dnsenum.html')
 
-def subdomainscan(request,subdomain_id):
-    context = {
-        'subdomain_id': subdomain_id,
-    }
-    return render(request, 'Main/subdomainscan.html',context)
 
-def crawler(request):
-    return render(request, 'Main/crawler.html')
+class whatweb_tool_view(View):
+    def get(self,request,*args,**kwargs):
+        return render(request, 'Main/whatweb_tool.html')  
+
+class crtsh(View):
+    def get(self,request,*args,**kwargs):
+        return render(request, 'Main/crtsh.html')      
+
+class subdomainscan(View):
+    def get(self,request,*args,**kwargs):
+        context = {
+            'subdomain_id': self.kwargs.get('subdomain_id'),
+        }
+        return render(request, 'Main/subdomainscan.html',context)
+
+class crawler(View):
+    def get(self,request,*args,**kwargs):
+        return render(request, 'Main/crawler.html')   
 
 
 def main(request):
@@ -66,6 +71,20 @@ def main(request):
 
 
 class Dashboard(View):
+    """
+    View class that renders the dashboard page.
+
+    This class-based view is responsible for rendering the dashboard page,
+    which displays summarized information about targets, directory listings,
+    subdomains, and URL crawl results.
+
+    Template:
+        The dashboard page template should be named 'Main/dashboard.html'
+        and should be placed in the appropriate template directory. The template
+        should expect a context variable named 'target_data' containing a list of
+        dictionaries with target-related information, and a 'targets_count'
+        variable with the total number of targets.
+    """
     def get(self,request,*args,**kwargs):
         targets = Target.objects.all()
         targets_count = targets.count()
@@ -111,6 +130,14 @@ class Dashboard(View):
 
 ##############################################REPORT GENERATION#############################
 def generate_pdf_report(request, target_id):
+    """
+    Generate a PDF report for a specific target's scan results.
+
+    This function-based view generates a PDF report containing summarized scan
+    results for a specific target. The report includes data from various related
+    models such as DirectoryListingResult, DNSEnumerationResult, WhawebResult,
+    CrtshResult, SubdomainScanResult, and CrawlerResult.
+    """
     target = Target.objects.get(id=target_id)
     font_size = 8
 
@@ -200,10 +227,6 @@ def generate_pdf_report(request, target_id):
                 story.append(Paragraph(f"{key}: {value}", getSampleStyleSheet()['Normal']))
 
 
-
-
-
-
         # Add Crtsh Results
         story.append(Paragraph("Crtsh Results:", getSampleStyleSheet()['Heading1']))
         crtsh_data = []
@@ -288,7 +311,6 @@ def generate_pdf_report(request, target_id):
             story.extend(subdomain_section)   # Add the elements directly to the story
 
 
-        # ... Add other sections and models similarly ...
 
         # Build the PDF document
         doc.build(story)

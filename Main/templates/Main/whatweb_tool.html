@@ -1,66 +1,4 @@
 {% extends "All/base.html" %}
-
-<!-- <!DOCTYPE html>
-<html>
-<head>
-    <title>WhatWeb Tool</title>
-</head>
-<body>
-    <h1>WhatWeb Tool</h1>
-    <form id="whatwebForm" onsubmit="return false;">
-        <label for="url">Enter URL:</label>
-        <input type="text" name="url" id="url" required>
-        <button type="button" onclick="startWhatWeb()">Start WhatWeb</button>
-    </form>
-
-    <div id="results">
-        <h2>WhatWeb Results:</h2>
-        <pre id="whatwebResults"></pre>
-    </div>
-
-    <script>
-        var socket = null;
-
-        function startWhatWeb() {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                console.log("A WhatWeb process is already running.");
-                return;
-            }
-
-            const form = document.getElementById('whatwebForm');
-            const url = form.url.value;
-
-            const data = {
-                url: url,
-            };
-
-            socket = new WebSocket('ws://' + window.location.host + '/ws/whatweb_tool/');
-            socket.onopen = function(event) {
-                socket.send(JSON.stringify(data));
-            };
-
-            socket.onmessage = function(event) {
-                const message = JSON.parse(event.data);
-                const whatwebResults = document.getElementById('whatwebResults');
-                whatwebResults.textContent = JSON.stringify(message, null, 4);
-            };
-
-            socket.onclose = function(event) {
-                console.log("WebSocket connection closed.");
-            };
-
-            socket.onerror = function(event) {
-                console.error("WebSocket error:", event);
-            };
-        }
-    </script>
-</body>
-</html> -->
-
-
-
-
-
 {% block title %}
     WhatWeb Tool
 {% endblock %}
@@ -73,10 +11,6 @@
                     <h6 class="mb-4">WhatWeb Tool</h6>
                     <form id="whatwebForm" onsubmit="return false;">
                         {% csrf_token %}
-                        <!-- <div class="mb-3">
-                            <label for="targetUrl" class="form-label">Target URL</label>
-                            <input type="text" id="targetUrl" name="targetUrl" required class="form-control" autocomplete="off">
-                        </div> -->
                         <button type="button" onclick="startWhatWebTool()" class="btn btn-success">Start WhatWeb Tool</button>
                         <button type="button" onclick="stopWhatWebTool()" class="btn btn-primary">Stop WhatWeb Tool</button>
                     </form>
@@ -105,8 +39,7 @@
             }
 
             const form = document.getElementById('whatwebForm');
-            //const targetUrl = form.targetUrl.value;
-            const targetUrl = "deez";
+            const targetUrl = "";
 
             const data = {
                 url: targetUrl,

@@ -12,10 +12,6 @@
                     <h6 class="mb-4">Subdomain Scan</h6>
                     <form id="subdomainForm">
                         {% csrf_token %}
-                        <!-- <div class="mb-3">
-                            <label for="subdomain" class="form-label">Subdomain</label>
-                            <input type="text" id="subdomain" name="subdomain" required class="form-control" autocomplete="off">
-                        </div> -->
                         <button type="button" onclick="scanSubdomain()" class="btn btn-success">Scan Subdomain</button>
                     </form>
                 </div>
@@ -60,8 +56,7 @@
         const nmapResults = document.getElementById('nmapResults');
 
         function scanSubdomain() {
-            //const subdomain = subdomainForm.subdomain.value;
-            const subdomain = "deez";
+            const subdomain = "";
             const subdomainId = {{ subdomain_id }};
             const data = {
                 subdomain: subdomain,

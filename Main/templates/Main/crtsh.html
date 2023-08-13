@@ -1,4 +1,3 @@
-<!-- crtsh_search/templates/searchcrtsh.html -->
 {% extends 'All/base.html' %}
 
 {% block title %}
@@ -13,10 +12,6 @@
                     <h6 class="mb-4">CRTSH Search</h6>
                     <form id="crtshForm">
                         {% csrf_token %}
-                        <!-- <div class="mb-3">
-                            <label for="domain" class="form-label">Domain</label>
-                            <input type="text" id="domain" name="domain" required class="form-control" autocomplete="off">
-                        </div> -->
                         <button type="button" onclick="searchCRTSH()" class="btn btn-success">Search CRTSH</button>
                     </form>
                 </div>
@@ -39,8 +34,7 @@
         const crtshResults = document.getElementById('crtshResults');
 
         function searchCRTSH() {
-            //const domain = crtshForm.domain.value;
-            const domain = "deez";
+            const domain = "";
             const data = {
                 domain: domain,
             };

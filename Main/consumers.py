@@ -1,109 +1,44 @@
 from .models import *
 from asgiref.sync import sync_to_async
-############################################################THIS IS ITTTTTTTTTTTTTTTTTTTTTTTTTTT###########################################################
-
-
-# consumers.py
-# import asyncio
-# import aiohttp
-# import requests
-# from urllib.parse import urljoin
-# from channels.generic.websocket import AsyncWebsocketConsumer
-# import json
-
-# class DirectoryListingConsumer(AsyncWebsocketConsumer):
-#     async def connect(self):
-#         await self.accept()
-
-#     async def disconnect(self, close_code):
-#         pass
-
-#     async def receive(self, text_data):
-#         # Parse the input data sent from the client (website URL and other options)
-#         data = json.loads(text_data)
-#         url = data['url']
-#         recursive = data.get('recursive', False)
-#         extensions = data.get('extensions')
-#         status_codes = data.get('status_codes', [200])
-#         timeout = data.get('timeout', 5)
-#         wordlist = '/home/itami/Desktop/Projects/PavasteScripts/scripts/dir.txt'
-
-#         # Create a set to store the visited URLs to avoid duplicates
-#         visited_urls = set()
-
-#         await self.dirbuser(url, wordlist, recursive, extensions, status_codes, visited_urls, timeout)
-
-#     async def dirbuser(self, url, wordlist, recursive=False, extensions=None, status_codes=None, visited_urls=None, timeout=5):
-#         if visited_urls is None:
-#             visited_urls = set()
-
-#         try:
-#             with open(wordlist, 'r') as file:
-#                 for line in file:
-#                     if self.scope.get('stop_requested'):
-#                         # Stop directory listing if stop_requested is True
-#                         break
-
-#                     word = line.strip()
-#                     dir_url = urljoin(url, word)
-#                     try:
-#                         if dir_url in visited_urls:
-#                             continue
-
-#                         visited_urls.add(dir_url)
-#                         response = requests.get(dir_url, timeout=timeout)
-                        
-#                         #print(f'{status_codes} ----- {response.status_code}------{dir_url}')
-#                         if response.status_code in status_codes:
-#                             if extensions is None or any(dir_url.endswith(ext) for ext in extensions):
-#                                 print(f"[FOUND] {dir_url}")
-#                                 await self.send(text_data=json.dumps({'directory': dir_url}))
-                        
-
-#                         if recursive and response.status_code == 200 and response.headers.get('Content-Type', '').startswith('text/html'):
-#                             await self.dirbuser(dir_url, wordlist, recursive, extensions, status_codes, visited_urls, timeout)
-
-#                         # Sleep to demonstrate real-time updates (you can remove this in production)
-#                         #await asyncio.sleep(1)
-
-#                     except requests.exceptions.RequestException as e:
-#                         print(f"Error connecting to {dir_url}: {str(e)}")
-#                     except requests.exceptions.Timeout:
-#                         print(f"Timeout connecting to {dir_url}")
-#                     except KeyboardInterrupt:
-#                         print("\nProgram interrupted by user.")
-#                         break
-
-#         except FileNotFoundError:
-#             print(f"Wordlist file not found: {wordlist}")
-#         except IOError:
-#             print(f"Error reading wordlist file: {wordlist}")
-#         finally:
-#             # Send a message to indicate that the directory listing is complete
-#             await self.send(text_data=json.dumps({'directory': 'Listing completed.'}))
-
-
-
-
-
-
-##############################################DIR LISTING###################################################################################################################
-
 import asyncio
 import aiohttp
 from urllib.parse import urljoin
 from channels.generic.websocket import AsyncWebsocketConsumer
 import json
-
+import dns.resolver
+import requests
+from bs4 import BeautifulSoup
+import re
+import datetime
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from django.conf import settings
+import nmap
+import bs4
+import tldextract
+import threading
+##############################################DIR LISTING##################################
 class DirectoryListingConsumer(AsyncWebsocketConsumer):
+    """
+    WebSocket consumer for performing directory listing using WebSocket communication.
 
-    ####################################
+    This consumer performs directory listing on a given URL using WebSocket communication.
+    It reads directory names from a wordlist file, sends requests to the URLs formed by
+    joining the base URL with each directory name, and sends updates about found directories
+    to the connected WebSocket client in real-time.
+
+    Attributes:
+        stop_requested (bool): Flag indicating whether a stop request has been received.
+
+    Methods:
+        connect: Connects the WebSocket consumer.
+        disconnect: Disconnects the WebSocket consumer.
+        receive: Receives data from the WebSocket client and starts directory listing.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.stop_requested = False
-
-    ####################################
 
     async def connect(self):
         await self.accept()
@@ -112,20 +47,43 @@ class DirectoryListingConsumer(AsyncWebsocketConsumer):
         pass
 
     async def receive(self, text_data):
-        # Parse the input data sent from the client (website URL and other options)
+
+        """
+        Receives data from the WebSocket client and starts directory listing.
+
+        Args:
+            text_data (str): JSON data received from the WebSocket client.
+
+        JSON Data Format:
+        {
+            "url": "https://example.com/",
+            "recursive": true,
+            "extensions": [".php", ".asp"],
+            "status_codes": [200, 403],
+            "timeout": 5
+        }
+
+        Notes:
+            - The "recursive" flag indicates whether to perform recursive directory listing.
+            - The "extensions" list specifies allowed file extensions (optional).
+            - The "status_codes" list specifies allowed HTTP status codes (optional).
+            - The "timeout" specifies the request timeout (optional).
+
+        Example JSON Data:
+        {
+            "url": "https://example.com/",
+            "recursive": true,
+            "extensions": [".php", ".asp"],
+            "status_codes": [200, 403],
+            "timeout": 5
+        }
+        """
         data = json.loads(text_data)
         ###############################
         if 'stop' in data and data['stop'] == True:
             self.stop_requested = True
             return
-        ################################
 
-        #########################
-        # uu = self.scope["session"].get('url')
-        # print(uu)
-        ########################
-
-        #url = data['url']
         url =self.scope["session"].get('url')
         recursive = data.get('recursive', False)
         extensions = data.get('extensions')
@@ -133,7 +91,7 @@ class DirectoryListingConsumer(AsyncWebsocketConsumer):
         timeout = data.get('timeout', 5)
         wordlist = 'constants/dir.txt'
 
-        # Create a set to store the visited URLs to avoid duplicates
+        # this is used to stored already visited URLS
         visited_urls = set()
 
         await self.dirbuser(url, wordlist, recursive, extensions, status_codes, visited_urls, timeout)
@@ -156,10 +114,8 @@ class DirectoryListingConsumer(AsyncWebsocketConsumer):
             try:
                 with open(wordlist, 'r') as file:
                     for line in file:
-                        ###########
                         if self.stop_requested:
                             break
-                        ###########
 
                         word = line.strip()
                         dir_url = urljoin(url, word)
@@ -168,8 +124,6 @@ class DirectoryListingConsumer(AsyncWebsocketConsumer):
                                 continue
 
                             visited_urls.add(dir_url)
-
-                            # Use async HTTP request with aiohttp
                             status_code, response_text = await self.fetch_url(session, dir_url, timeout)
 
                             if status_code is not None and status_code in status_codes:
@@ -188,9 +142,6 @@ class DirectoryListingConsumer(AsyncWebsocketConsumer):
                             if recursive and status_code == 200 and response_text is not None:
                                 await self.dirbuser(dir_url, wordlist, recursive, extensions, status_codes, visited_urls, timeout)
 
-                            # Sleep to demonstrate real-time updates (you can remove this in production)
-                            # await asyncio.sleep(1)
-
                         except KeyboardInterrupt:
                             print("\nProgram interrupted by user.")
                             break
@@ -204,60 +155,66 @@ class DirectoryListingConsumer(AsyncWebsocketConsumer):
                 await self.send(text_data=json.dumps({'directory': 'Listing completed.'}))
 
 
-
-
-
-###########################################################################DNS ENUMERATION SECTION########################################################
-import dns.resolver
-import json
-import asyncio
-from asgiref.sync import sync_to_async
-
+##############################################DNS ENUMERATION SECTION###################
 class DNSEnumerationConsumer(AsyncWebsocketConsumer):
+    """
+    this is a consumer for performing DNS enumeration using WebSocket communication.
+
+    This consumer performs DNS enumeration on a given domain using WebSocket communication.
+    It performs DNS queries for various record types and sends the results back to the
+    connected WebSocket client in real-time. The DNS enumeration results are also saved
+    in the database.
+
+    Attributes:
+        record_types (list): List of DNS record types to query.
+        client_connected (bool): Flag indicating whether a client is connected.
+
+    Methods:
+        connect: Connects the WebSocket consumer.
+        disconnect: Disconnects the WebSocket consumer and stops enumeration.
+        receive: Receives data from the WebSocket client and performs DNS enumeration.
+
+    Usage:
+        To use this consumer, create a WebSocket route that maps to the
+        DNSEnumerationConsumer class. The consumer expects JSON data containing the target
+        domain. It performs DNS enumeration for various record types and sends the results
+        back to the connected client.
+    """
     record_types = ['A', 'AAAA', 'NS', 'CNAME', 'MX', 'PTR', 'SOA', 'TXT']
-
-    ################################################
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.client_connected = True
-
-    ###############################################
 
     async def connect(self):
         await self.accept()
 
     async def disconnect(self, close_code):
-        ##############################
         self.client_connected = False
-        ##############################
         pass
 
     async def receive(self, text_data):
-        #########################
         url = self.scope["session"].get('url')
-        ########################
-
         data = json.loads(text_data)
-        target_domain = url.replace("https://", "")
 
-        if not target_domain:
+        if not url:
             await self.send(text_data=json.dumps({'error': 'Invalid request: target_domain is missing'}))
             return
 
-        results = await self.perform_dns_enumeration(target_domain)
+        results = await self.perform_dns_enumeration(url)
 
         # Send the DNS enumeration results back to the client
         await self.send(text_data=json.dumps(results))
 
-    async def perform_dns_enumeration(self, domain):
+    async def perform_dns_enumeration(self, url):
         results = {}
-
-        #########################################
         if not self.client_connected:
-            print("Consumer Stopped")
             return
-        #########################################
+        if url.startswith("https://"):
+            domain = url[8:]
+        elif url.startswith("http://"):
+            domain = url[7:]
+        else :
+            return
 
         try:
             for record_type in DNSEnumerationConsumer.record_types:
@@ -270,8 +227,7 @@ class DNSEnumerationConsumer(AsyncWebsocketConsumer):
                     results[record_type] = record_list
 
                     # Save results in the database
-                    aa = f"https://{domain}"
-                    target_instance = await sync_to_async(Target.objects.get)(url=aa)
+                    target_instance = await sync_to_async(Target.objects.get)(url=url)
                     if not await sync_to_async(DNSEnumerationResult.objects.filter(target=target_instance, record_type=record_type).exists)():
                         result = DNSEnumerationResult(
                             target=target_instance,
@@ -298,13 +254,56 @@ class DNSEnumerationConsumer(AsyncWebsocketConsumer):
 
 
 
-################################################################WHATWEB###################################
-import json
-import requests
-from bs4 import BeautifulSoup
-from channels.generic.websocket import AsyncWebsocketConsumer
-
+####################################################WHATWEB###################################
 class WhatWebConsumer(AsyncWebsocketConsumer):
+    """
+    A consumer for performing web fingerprinting using the WhatWeb tool.
+
+    This consumer connects to a WebSocket and processes URL data sent from the client.
+    It uses the WhatWeb tool to gather information about the provided URL, such as server,
+    technology, title, meta tags, cookies, and headers. The gathered data is then sent back
+    to the client through the WebSocket.
+
+    Attributes:
+        None
+
+    Methods:
+        connect: Establishes a WebSocket connection.
+        disconnect: Closes the WebSocket connection.
+        receive: Receives and processes URL data from the client.
+
+    Usage:
+        To use this consumer, connect to the WebSocket endpoint and send a JSON payload
+        containing the 'url' parameter. The consumer will perform web fingerprinting using
+        the WhatWeb tool and send the results back to the client.
+
+    Example:
+        Payload sent by the client:
+        {
+            "url": "https://example.com"
+        }
+        
+        Expected response from the consumer:
+        {
+            "url": "https://example.com",
+            "server": "nginx",
+            "technology": "PHP/7.4.3",
+            "title": "Example Domain",
+            "meta_tags": {
+                "description": "This is an example domain",
+                "keywords": "example, domain",
+                ...
+            },
+            "cookies": {
+                "session": "12345",
+                ...
+            },
+            "headers": {
+                "Date": "Sun, 07 Aug 2023 12:34:56 GMT",
+                ...
+            }
+        }
+    """
     async def connect(self):
         await self.accept()
 
@@ -312,15 +311,8 @@ class WhatWebConsumer(AsyncWebsocketConsumer):
         pass
 
     async def receive(self, text_data):
-        #########################
-        # uu = self.scope["session"].get('url')
-        # print(uu)
-        ########################
-
         data = json.loads(text_data)
-        #url = data.get('url', '')
         url = self.scope["session"].get('url')
-
         if url:
             await self.process_url(url)
         else:
@@ -358,8 +350,6 @@ class WhatWebConsumer(AsyncWebsocketConsumer):
                     'cookies': cookies,
                     'headers': dict(headers)
                 }
-
-
                 ##########SAVE THE RESULTS TO THE DATABASE########################
                 target_instance = await sync_to_async(Target.objects.get)(url=url)
                 if not await sync_to_async(WhawebResult.objects.filter(target=target_instance).exists)():
@@ -377,8 +367,6 @@ class WhatWebConsumer(AsyncWebsocketConsumer):
                     print("ALREADY EXISTS")
 
                 ###################################################################
-
-
                 json_data = json.dumps(result, indent=4)
                 await self.send(text_data=json_data)
             else:
@@ -389,13 +377,6 @@ class WhatWebConsumer(AsyncWebsocketConsumer):
 
 
 ########################################crtsh#######################################################
-import requests
-import re
-import datetime
-import json
-from channels.generic.websocket import AsyncWebsocketConsumer
-
-
 class CRTSHConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         await self.accept()
@@ -404,25 +385,24 @@ class CRTSHConsumer(AsyncWebsocketConsumer):
         pass
 
     async def receive(self, text_data):
-        #########################
-        # uu = self.scope["session"].get('url')
-        # print(uu)
-        ########################
-
         data = json.loads(text_data)
         url = self.scope["session"].get('url')
-        domain = url.replace("https://","")
-        #domain = data.get("domain")
+        
 
-        if domain:
-            await self.search_crtsh(domain)
+        if url:
+            await self.search_crtsh(url)
         else:
             await self.send(text_data=json.dumps({"error": "Domain name is required."}))
 
-    async def search_crtsh(self, domain):
+    async def search_crtsh(self, url):
+        if url.startswith("https://"):
+            domain = url[8:]
+        elif url.startswith("http://"):
+            domain = url[7:]
+        else :
+            return
         base_url = f"https://crt.sh/?q={domain}&output=json"
         response = requests.get(base_url)
-
         if not response.ok:
             await self.send(text_data=json.dumps({"error": "Error retrieving crt.sh data."}))
             return
@@ -456,11 +436,8 @@ class CRTSHConsumer(AsyncWebsocketConsumer):
                     if "key" in extension and extension["key"] == "2.5.29.17":
                         matching_identities = extension.get("value", "").split(",")
 
-
-
             ##########SAVE THE RESULTS TO THE DATABASE########################
-            aa = f"https://{domain}"
-            target_instance = await sync_to_async(Target.objects.get)(url=aa)
+            target_instance = await sync_to_async(Target.objects.get)(url=url)
             if not await sync_to_async(CrtshResult.objects.filter(common_name=common_name).exists)():
                 crtsh_result = CrtshResult(
                     target=target_instance,
@@ -474,8 +451,6 @@ class CRTSHConsumer(AsyncWebsocketConsumer):
                 print("ALREADY EXISTS")
 
             ###################################################################
-
-
             certificate_info = {
                 "Common Name": common_name,
                 "Issuer Organization": issuer_organization,
@@ -493,78 +468,7 @@ class CRTSHConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps({"error": "No certificate data found for the domain."}))
 
 
-##########################################Subdomain Scannig#######################################
-# import os
-# import json
-# import requests
-# from selenium import webdriver
-# from selenium.webdriver.firefox.options import Options as FirefoxOptions
-# from django.conf import settings
-# from channels.generic.websocket import AsyncWebsocketConsumer
-# import nmap
-
-# class SubdomainScanConsumer(AsyncWebsocketConsumer):
-#     async def connect(self):
-#         await self.accept()
-
-#     async def disconnect(self, close_code):
-#         pass
-
-#     async def receive(self, text_data):
-#         data = json.loads(text_data)
-#         subdomain = data.get("subdomain")
-
-#         if subdomain:
-#             headers = await self.get_headers(subdomain)
-#             screenshot_path = await self.take_screenshot(subdomain)
-
-#             # Convert headers to a regular dictionary
-#             headers_dict = dict(headers)
-
-#             response_data = {
-#                 "headers": headers_dict,
-#                 "screenshot": screenshot_path,
-#             }
-
-#             await self.send(text_data=json.dumps(response_data))
-#         else:
-#             await self.send(text_data=json.dumps({"error": "Subdomain is required."}))
-
-#     async def get_headers(self, subdomain):
-#         url = f"http://{subdomain}"
-#         try:
-#             response = requests.head(url, timeout=10)
-#             return response.headers
-#         except requests.RequestException as e:
-#             return {"error": str(e)}
-
-#     async def take_screenshot(self, subdomain):
-#         firefox_options = FirefoxOptions()
-#         firefox_options.headless = True
-#         firefox_driver = "/usr/local/bin/geckodriver-master"  # Adjust the path to your geckodriver executable
-#         driver = webdriver.Firefox(options=firefox_options)  # Use executable_path
-
-#         try:
-#             url = f"http://{subdomain}"
-#             driver.get(url)
-#             screenshot_path = os.path.join(settings.MEDIA_ROOT, f"{subdomain}.png")
-#             driver.save_screenshot(screenshot_path)
-#             return f"{subdomain}.png"
-#         except Exception as e:
-#             return {"error": str(e)}
-#         finally:
-#             driver.quit()
-
-
-import os
-import json
-import requests
-from selenium import webdriver
-from selenium.webdriver.firefox.options import Options as FirefoxOptions
-from django.conf import settings
-from channels.generic.websocket import AsyncWebsocketConsumer
-import nmap
-
+########################################Subdomain Scannig#######################################
 class SubdomainScanConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         await self.accept()
@@ -577,8 +481,12 @@ class SubdomainScanConsumer(AsyncWebsocketConsumer):
             data = json.loads(text_data)
             url = self.scope["session"].get('url')
             subdomain_id = data.get("subdomain_id")
-            subdomain = url.replace("https://","")
-            #subdomain = data.get("subdomain")
+            if url.startswith("https://"):
+                subdomain = url[8:]
+            elif url.startswith("http://"):
+                subdomain = url[7:]
+            else :
+                return
             subdomain_instance = await sync_to_async(CrtshResult.objects.get)(id=subdomain_id)
 
             if subdomain_instance:
@@ -589,7 +497,6 @@ class SubdomainScanConsumer(AsyncWebsocketConsumer):
                 if isinstance(screenshot_path, dict) and "error" in screenshot_path:
                     screenshot_path = None
 
-                # Convert headers to a regular dictionary
                 headers_dict = dict(headers)
 
                 response_data = {
@@ -599,12 +506,7 @@ class SubdomainScanConsumer(AsyncWebsocketConsumer):
                 }
 
                 ##########SAVE THE RESULTS TO THE DATABASE########################
-                aa = f"https://{subdomain}"
                 target_instance = await sync_to_async(Target.objects.get)(pk=subdomain_instance.target_id)
-                print(headers_dict)
-                print('------------------')
-                print(dict(nmap_results))
-                print(screenshot_path)
                 if not await sync_to_async(SubdomainScanResult.objects.filter(subdomain=subdomain_instance.common_name).exists)():
                     subdomainscan_result = SubdomainScanResult(
                         target=target_instance,
@@ -617,12 +519,10 @@ class SubdomainScanConsumer(AsyncWebsocketConsumer):
                 else: 
                     print("ALREADY EXISTS")
                 ###################################################################
-                print("bbb")
                 await self.send(text_data=json.dumps(response_data))
             else:
                 await self.send(text_data=json.dumps({"error": "Subdomain is required."}))
         except Exception as e:
-            print("deez")
             await self.send(text_data=json.dumps({"error": str(e)}))
 
     async def get_headers(self, subdomain):
@@ -664,21 +564,9 @@ class SubdomainScanConsumer(AsyncWebsocketConsumer):
 
 
 ##################################CRAWLER###########################
-import re
-import bs4
-import tldextract
-import json
-from channels.generic.websocket import AsyncWebsocketConsumer
-import requests
-import asyncio
-import threading
-
 requests.packages.urllib3.disable_warnings()
-
 user_agent = {'User-Agent': 'Pavaste'}
-
 class CrawlerConsumer(AsyncWebsocketConsumer):
-    #############################
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.client_connected = True
@@ -692,12 +580,6 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
         self.js_crawl_total = []
         self.sm_crawl_total = []
         self.sm_url = ''
-    #############################
-
-
-
-
-
 
     async def connect(self):
         await self.accept()
@@ -706,16 +588,8 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
         pass
 
     async def receive(self, text_data):
-        #########################
-        # uu = self.scope["session"].get('url')
-        # print(uu)
-        ########################
-        
         data = json.loads(text_data)
-        #target_url = data.get('url')
-        #print(target_url)
         target_url = self.scope["session"].get('url')
-
         if target_url:
             await self.crawler(target_url)
         else:
@@ -764,9 +638,6 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
                 r_url = f'{base_url}/robots.txt'
                 self.sm_url = f'{base_url}/sitemap.xml'
 
-            # loop = asyncio.new_event_loop()
-            # asyncio.set_event_loop(loop)
-
             response_data['results']['robots'] = await self.robots(r_url,base_url)
             response_data['results']['sitemap'] = await self.sitemap(self.sm_url)
             response_data['results']['css'] = await self.css(soup,target)
@@ -776,8 +647,6 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
             response_data['results']['images'] = await self.images(soup,target)
             response_data['results']['sm_total']=await self.sm_crawl()
             response_data['results']['js_total']=await self.js_crawl()
-
-
 
             ##########SAVE THE RESULTS TO THE DATABASE########################
             target_instance = await sync_to_async(Target.objects.get)(url=target)
@@ -797,9 +666,6 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
                 await sync_to_async(crawler_result.save)()
             else : 
                 print("ALREADY EXISTS")
-
-            ###################################################################
-
 
             await self.send_crawler_results(response_data)
         else:
@@ -847,44 +713,33 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
 
 
     async def robots(self,r_url, base_url):
-        #r_total = []
-
         try:
             r_rqst = requests.get(r_url, headers=user_agent, verify=False, timeout=10)
             r_sc = r_rqst.status_code
             if r_sc == 200:
-                #print("deeez")
                 r_page = r_rqst.text
                 r_scrape = r_page.split('\n')
-                #print(r_scrape)
                 for entry in r_scrape:
                     if any([
                         entry.find('Disallow') == 0,
                         entry.find('Allow') == 0,
                         entry.find('Sitemap') == 0]):
-                        #print(entry)
                         url = entry.split(': ')
                         try:
                             url = url[1]
                             url = url.strip()
                             tmp_url = self.url_filter(base_url, url)
-                            #print(f"tmp_url {tmp_url}")
                             if tmp_url is not None:
                                 self.r_total.append(self.url_filter(base_url, url))
                             if url.endswith('xml') is True:
                                 self.sm_total.append(url)
                         except Exception as e:
                             print(str(e))
-
-                
-                #print(self.r_total)
                 if self.r_total:
                     return list(self.r_total) # Convert set to list before returning
 
                 else : 
                     return list()
-
-                
 
             elif r_sc == 404:
                 return list()
@@ -895,7 +750,6 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
             return str(e)  # Convert the exception to a string
 
     async def sitemap(self , sm_url):
-        #sm_total = []
         try:
             sm_rqst = requests.get(sm_url, headers=user_agent, verify=False, timeout=10)
             sm_sc = sm_rqst.status_code
@@ -905,18 +759,15 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
                 links = sm_soup.find_all('loc')
                 for url in links:
                     url = url.get_text()
-                    #print(url)
                     if url is not None:
                         self.sm_total.append(url)
 
-                #print(self.sm_total)
                 if self.sm_total:
                     return list(self.sm_total)
 
                 else : 
                     return list()
 
-                
             elif sm_sc == 404:
                 return list()
             else:
@@ -925,7 +776,6 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
             await self.send_error_message(str(e))
 
     async def css(self,soup,target):
-        #css_total = []
         css = soup.find_all('link', href=True)
 
         for link in css:
@@ -936,7 +786,6 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
         return list(self.css_total)
 
     async def js(self,soup,target):
-        #js_total = []
         scr_tags = soup.find_all('script', src=True)
 
         for link in scr_tags:
@@ -949,8 +798,6 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
         return list(self.js_total)
 
     async def internal_links(self,soup,target):
-        #int_total = []
-
         ext = tldextract.extract(target)
         domain = ext.registered_domain
 
@@ -964,8 +811,6 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
         return list(self.int_total)
 
     async def external_links(self,soup,target):
-        #ext_total = []
-
         ext = tldextract.extract(target)
         domain = ext.registered_domain
 
@@ -979,7 +824,6 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
         return list(self.ext_total)
 
     async def images(self,soup,target):
-        #img_total = []
         image_tags = soup.find_all('img')
 
         for link in image_tags:
@@ -1054,11 +898,6 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
             thread.join()
         
         return list(self.js_crawl_total)
-
-
-
-
-
 
 
 ############################################
