@@ -378,6 +378,47 @@ class WhatWebConsumer(AsyncWebsocketConsumer):
 
 ########################################crtsh#######################################################
 class CRTSHConsumer(AsyncWebsocketConsumer):
+    """
+    A consumer for querying crt.sh for SSL/TLS certificate information associated with a domain.
+
+    This consumer connects to a WebSocket and receives a domain name from the client.
+    It queries crt.sh for SSL/TLS certificates issued for the provided domain and returns
+    relevant certificate information, such as common name, issuer organization, validity dates,
+    and matching identities, back to the client through the WebSocket.
+
+    Attributes:
+        None
+
+    Methods:
+        connect: Establishes a WebSocket connection.
+        disconnect: Closes the WebSocket connection.
+        receive: Receives and processes a domain name from the client.
+        search_crtsh
+
+    Usage:
+        To use this consumer, connect to the WebSocket endpoint and send a JSON payload
+        containing the 'url' parameter with the domain name. The consumer will query crt.sh
+        for SSL/TLS certificate information associated with the domain and send the results
+        back to the client.
+
+    Example:
+        Payload sent by the client:
+        {
+            "url": "https://example.com"
+        }
+        
+        Expected response from the consumer:
+        [
+            {
+                "Common Name": "example.com",
+                "Issuer Organization": "Let's Encrypt",
+                "Not Before": "2023-01-01 00:00:00",
+                "Not After": "2023-12-31 23:59:59",
+                "Matching Identities": ["www.example.com"]
+            },
+            ...
+        ]
+    """
     async def connect(self):
         await self.accept()
 
@@ -470,6 +511,52 @@ class CRTSHConsumer(AsyncWebsocketConsumer):
 
 ########################################Subdomain Scannig#######################################
 class SubdomainScanConsumer(AsyncWebsocketConsumer):
+    """
+    A consumer for conducting a comprehensive subdomain scan and analysis.
+
+    This consumer connects to a WebSocket and receives a subdomain ID from the client.
+    It performs various tasks such as retrieving HTTP headers, taking a screenshot of
+    the subdomain's landing page, and running an Nmap scan to gather open port information.
+    The gathered results are then sent back to the client through the WebSocket.
+
+    Attributes:
+        None
+
+    Methods:
+        connect: Establishes a WebSocket connection.
+        disconnect: Closes the WebSocket connection.
+        receive: Receives and processes a subdomain ID from the client.
+        get_headers: Retrieves HTTP headers for the subdomain.
+        take_screenshot: Takes a screenshot of the subdomain's landing page.
+        run_nmap_scan: Performs an Nmap scan to gather open port information.
+
+    Usage:
+        To use this consumer, connect to the WebSocket endpoint and send a JSON payload
+        containing the 'subdomain_id' parameter. The consumer will perform a subdomain scan,
+        retrieve HTTP headers, capture a screenshot, and run an Nmap scan for the specified
+        subdomain. The results are then sent back to the client.
+
+    Example:
+        Payload sent by the client:
+        {
+            "subdomain_id": 12345
+        }
+        
+        Expected response from the consumer:
+        {
+            "headers": {
+                "Server": "nginx/1.18.0",
+                "Content-Type": "text/html",
+                ...
+            },
+            "screenshot": "subdomain.png",
+            "nmap_results": {
+                "80": {"state": "open", "reason": "syn-ack", "name": "http", ...},
+                "443": {"state": "open", "reason": "syn-ack", "name": "https", ...},
+                ...
+            }
+        }
+    """
     async def connect(self):
         await self.accept()
 
@@ -567,6 +654,63 @@ class SubdomainScanConsumer(AsyncWebsocketConsumer):
 requests.packages.urllib3.disable_warnings()
 user_agent = {'User-Agent': 'Pavaste'}
 class CrawlerConsumer(AsyncWebsocketConsumer):
+    """
+    A consumer for crawling and analyzing a target URL.
+
+    This consumer connects to a WebSocket and receives a target URL from the client.
+    It performs crawling operations to gather information about the target, including
+    robots.txt directives, sitemap.xml links, CSS and JavaScript resources, internal and
+    external links, and images. The gathered results are then sent back to the client
+    through the WebSocket.
+
+    Attributes:
+        None
+
+    Methods:
+        connect: Establishes a WebSocket connection.
+        disconnect: Closes the WebSocket connection.
+        receive: Receives and processes a target URL from the client.
+        send_error_message: Sends an error message back to the client.
+        send_crawler_results: Sends the crawler results back to the client.
+        crawler: Initiates the crawling process and collects various information.
+        url_filter: Filters and processes URLs to generate valid links.
+        robots: Retrieves and analyzes the robots.txt file for directives.
+        sitemap: Retrieves and analyzes the sitemap.xml file for links.
+        css: Extracts CSS resources from the HTML content.
+        js: Extracts JavaScript resources from the HTML content.
+        internal_links: Collects internal links within the same domain.
+        external_links: Collects external links pointing outside the domain.
+        images: Collects image links from the HTML content.
+        sm_crawl: Crawls the links found in the sitemap.xml file.
+        js_crawl: Crawls the links found in JavaScript resources.
+
+    Usage:
+        To use this consumer, connect to the WebSocket endpoint and send a JSON payload
+        containing the 'url' parameter with the target URL. The consumer will perform
+        crawling operations on the provided URL and send back the results to the client.
+
+    Example:
+        Payload sent by the client:
+        {
+            "url": "https://example.com"
+        }
+        
+        Expected response from the consumer:
+        {
+            "status": "success",
+            "results": {
+                "robots": [...],
+                "sitemap": [...],
+                "css": [...],
+                "js": [...],
+                "internal_links": [...],
+                "external_links": [...],
+                "images": [...],
+                "sm_total": [...],
+                "js_total": [...]
+            }
+        }
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.client_connected = True
@@ -1012,3 +1156,5 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
 #         # Implement the dir_output function logic here
 #         pass
 ################################################
+
+
