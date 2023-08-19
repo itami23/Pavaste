@@ -96,70 +96,70 @@
 
 
 ###########################XSS ATTACK TEST###########################################
-import requests
-from bs4 import BeautifulSoup, SoupStrainer
+# import requests
+# from bs4 import BeautifulSoup, SoupStrainer
 
-def load_xss_payloads(file_path):
-    payloads = []
-    with open(file_path, 'r') as filehandle:
-        for line in filehandle:
-            xss_payload = line.strip()
-            payloads.append(xss_payload)
-    return payloads
+# def load_xss_payloads(file_path):
+#     payloads = []
+#     with open(file_path, 'r') as filehandle:
+#         for line in filehandle:
+#             xss_payload = line.strip()
+#             payloads.append(xss_payload)
+#     return payloads
 
-def scan_for_xss(url, payloads, stop_after_first=False):
-    results = []
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  # Check for HTTP error status codes
-        for payload in payloads:
-            data = {}
-            for field in BeautifulSoup(response.text, "html.parser", parse_only=SoupStrainer('input')):
-                if field.has_attr('name'):
-                    if field['name'].lower() == "submit":
-                        data[field['name']] = "submit"
-                    else:
-                        data[field['name']] = payload
-            response = requests.post(url, data=data)
-            if payload in response.text:
-                results.append(payload)
-                if stop_after_first:
-                    break  # Stop after first payload is found
-        return results
-    except requests.exceptions.RequestException as e:
-        print("Error:", e)
-        return []
+# def scan_for_xss(url, payloads, stop_after_first=False):
+#     results = []
+#     try:
+#         response = requests.get(url)
+#         response.raise_for_status()  # Check for HTTP error status codes
+#         for payload in payloads:
+#             data = {}
+#             for field in BeautifulSoup(response.text, "html.parser", parse_only=SoupStrainer('input')):
+#                 if field.has_attr('name'):
+#                     if field['name'].lower() == "submit":
+#                         data[field['name']] = "submit"
+#                     else:
+#                         data[field['name']] = payload
+#             response = requests.post(url, data=data)
+#             if payload in response.text:
+#                 results.append(payload)
+#                 if stop_after_first:
+#                     break  # Stop after first payload is found
+#         return results
+#     except requests.exceptions.RequestException as e:
+#         print("Error:", e)
+#         return []
 
-def save_results(filename, results):
-    with open(filename, 'w') as filehandle:
-        for result in results:
-            filehandle.write(result + '\n')
+# def save_results(filename, results):
+#     with open(filename, 'w') as filehandle:
+#         for result in results:
+#             filehandle.write(result + '\n')
 
-def main():
-    xss_payloads = load_xss_payloads("constants/xss_vectors.txt")
+# def main():
+#     xss_payloads = load_xss_payloads("constants/xss_vectors.txt")
 
-    url = input("Enter the URL to scan for XSS vulnerabilities: ")
+#     url = input("Enter the URL to scan for XSS vulnerabilities: ")
 
-    stop_option = input("Do you want to stop after the first payload is found? (y/n): ").lower()
-    stop_after_first = stop_option == "y"
+#     stop_option = input("Do you want to stop after the first payload is found? (y/n): ").lower()
+#     stop_after_first = stop_option == "y"
 
-    xss_vulnerable_payloads = scan_for_xss(url, xss_payloads, stop_after_first)
+#     xss_vulnerable_payloads = scan_for_xss(url, xss_payloads, stop_after_first)
 
-    if xss_vulnerable_payloads:
-        print("XSS Vulnerabilities Found:")
-        for payload in xss_vulnerable_payloads:
-            print("Payload", payload, "returned in the response")
+#     if xss_vulnerable_payloads:
+#         print("XSS Vulnerabilities Found:")
+#         for payload in xss_vulnerable_payloads:
+#             print("Payload", payload, "returned in the response")
         
-        save_option = input("Do you want to save the results to a file? (y/n): ").lower()
-        if save_option == "y":
-            filename = input("Enter the filename to save the results: ")
-            save_results(filename, xss_vulnerable_payloads)
-            print("Results saved to", filename)
-    else:
-        print("No XSS Vulnerabilities Found.")
+#         save_option = input("Do you want to save the results to a file? (y/n): ").lower()
+#         if save_option == "y":
+#             filename = input("Enter the filename to save the results: ")
+#             save_results(filename, xss_vulnerable_payloads)
+#             print("Results saved to", filename)
+#     else:
+#         print("No XSS Vulnerabilities Found.")
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
 
 
 
@@ -296,3 +296,100 @@ if __name__ == "__main__":
 #     print("[*] Usage: python3 clickJackPoc.py -f <file_name>")
 #     print("[*] The Code might not worked for you , please retry & try --help option to know more")
 #     exit(0)
+
+
+
+
+
+
+
+
+
+
+import requests
+from bs4 import BeautifulSoup, SoupStrainer
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.alert import Alert
+
+def load_xss_payloads(file_path):
+    payloads = []
+    with open(file_path, 'r') as filehandle:
+        for line in filehandle:
+            xss_payload = line.strip()
+            payloads.append(xss_payload)
+    return payloads
+
+def scan_for_xss(url, payloads, stop_after_first=True):
+    results = []
+    try:
+        options = webdriver.FirefoxOptions()
+        options.add_argument('--headless')  # Use add_argument to set headless mode
+        driver = webdriver.Firefox(options=options)
+
+        driver.get(url)
+
+        for payload in payloads:
+            for input_element in driver.find_elements(By.TAG_NAME, 'input'):
+                try:
+                    input_element.clear()
+                    input_element.send_keys(payload)
+
+                    submit_button = driver.find_element(By.XPATH, '//input[@type="submit" or @type="button"]')
+                    submit_button.click()
+
+                    try:
+                        alert = Alert(driver)
+                        alert.dismiss()
+                    except:
+                        pass
+
+                    if payload in driver.page_source:
+                        results.append(payload)
+                        if stop_after_first:
+                            break  # Stop after first payload is found
+                except:
+                    pass
+
+            if stop_after_first and results:
+                break  # Stop if first vulnerability is found
+
+        return results
+    except Exception as e:
+        print("Error:", e)
+        return []
+    finally:
+        driver.quit()
+
+
+def save_results(filename, results):
+    with open(filename, 'w') as filehandle:
+        for result in results:
+            filehandle.write(result + '\n')
+
+def main():
+    xss_payloads = load_xss_payloads("constants/xss_vectors.txt")
+
+    url = input("Enter the URL to scan for XSS vulnerabilities: ")
+
+    stop_option = input("Do you want to stop after the first payload is found? (y/n): ").lower()
+    stop_after_first = stop_option == "y"
+
+    xss_vulnerable_payloads = scan_for_xss(url, xss_payloads, stop_after_first)
+
+    if xss_vulnerable_payloads:
+        print("XSS Vulnerabilities Found:")
+        for payload in xss_vulnerable_payloads:
+            print("Payload", payload, "returned in the response")
+        
+        save_option = input("Do you want to save the results to a file? (y/n): ").lower()
+        if save_option == "y":
+            filename = input("Enter the filename to save the results: ")
+            save_results(filename, xss_vulnerable_payloads)
+            print("Results saved to", filename)
+    else:
+        print("No XSS Vulnerabilities Found.")
+
+if __name__ == "__main__":
+    main()

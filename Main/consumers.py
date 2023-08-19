@@ -1158,3 +1158,107 @@ class CrawlerConsumer(AsyncWebsocketConsumer):
 ################################################
 
 
+import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.alert import Alert
+from bs4 import BeautifulSoup, SoupStrainer
+from channels.generic.websocket import AsyncWebsocketConsumer
+import json
+
+class XSSScannerConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        pass
+
+    async def receive(self, text_data):
+        try:
+            data = json.loads(text_data)
+            url = data.get('url')
+            print(url)
+            stop_after_first = data.get('stop_after_first', True)
+
+            if url:
+                xss_payloads = self.load_xss_payloads("constants/xss_vectors.txt")
+                xss_vulnerable_payloads = await self.scan_for_xss(url, xss_payloads, stop_after_first)
+
+                if xss_vulnerable_payloads:
+                    response_data = {
+                        'status': 'success',
+                        'vulnerable_payloads': xss_vulnerable_payloads
+                    }
+                else:
+                    response_data = {
+                        'status': 'success',
+                        'vulnerable_payloads': [],
+                        'message': 'No XSS Vulnerabilities Found.'
+                    }
+            else:
+                response_data = {
+                    'status': 'error',
+                    'message': 'URL is required.'
+                }
+
+            await self.send(text_data=json.dumps(response_data))
+
+        except Exception as e:
+            await self.send_error_message(str(e))
+
+    async def send_error_message(self, error_message):
+        response_data = {
+            'status': 'error',
+            'message': error_message
+        }
+        await self.send(text_data=json.dumps(response_data))
+
+    def load_xss_payloads(self, file_path):
+        payloads = []
+        with open(file_path, 'r') as filehandle:
+            for line in filehandle:
+                xss_payload = line.strip()
+                payloads.append(xss_payload)
+        return payloads
+
+    async def scan_for_xss(self, url, payloads, stop_after_first=True):
+        results = []
+        try:
+            options = webdriver.FirefoxOptions()
+            options.add_argument('--headless')
+            driver = webdriver.Firefox(options=options)
+
+            driver.get(url)
+
+            for payload in payloads:
+                for input_element in driver.find_elements(By.TAG_NAME, 'input'):
+                    try:
+                        input_element.clear()
+                        input_element.send_keys(payload)
+
+                        submit_button = driver.find_element(By.XPATH, '//input[@type="submit" or @type="button"]')
+                        submit_button.click()
+
+                        try:
+                            alert = Alert(driver)
+                            alert.dismiss()
+                        except:
+                            pass
+
+                        if payload in driver.page_source:
+                            results.append(payload)
+                            if stop_after_first:
+                                break
+                    except:
+                        pass
+
+                if stop_after_first and results:
+                    break
+
+            return results
+        except Exception as e:
+            return []
+        finally:
+            driver.quit()
+

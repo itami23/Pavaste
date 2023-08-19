@@ -1,4 +1,4 @@
-from django.shortcuts import render,redirect
+from django.shortcuts import render,redirect,get_object_or_404
 from django.http import HttpResponse
 import json
 from .forms import *
@@ -363,3 +363,16 @@ class SubdomainInfo(View):
             return render(request, 'Main/subdomain_details.html', context)
         except SubdomainScanResult.DoesNotExist:
             return render(request, 'All/404.html')
+
+
+
+class XssSacan(View):
+    def get(self,request,*args,**kwargs):
+        target_url = request.session['url']
+        target = get_object_or_404(Target, url=target_url)
+        crawler_result = CrawlerResult.objects.filter(target=target).first()
+        context = {
+            'target_url' : target_url,
+            'crawler_result' : crawler_result,
+        }
+        return render(request, 'Main/xssscan.html',context)
