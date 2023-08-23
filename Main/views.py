@@ -400,3 +400,14 @@ class DirectoryTraversalScan(View):
             'crawler_result' : crawler_result,
         }
         return render(request, 'Main/dirtraversal.html',context)
+
+class CommandInjectionScan(View):
+    def get(self,request,*args,**kwargs):
+        target_url = request.session['url']
+        target = get_object_or_404(Target, url=target_url)
+        crawler_result = CrawlerResult.objects.filter(target=target).first()
+        context = {
+            'target_url' : target_url,
+            'crawler_result' : crawler_result,
+        }
+        return render(request, 'Main/commandinjection.html',context)

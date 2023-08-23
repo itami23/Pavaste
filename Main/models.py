@@ -101,4 +101,13 @@ class DirectoryTraversalresult(models.Model):
     def __str__(self):
         return f"{self.target.url}"
 
+class CommandInjectionResult(models.Model):
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
+    url = models.CharField(max_length=255)
+    vulnerable = models.BooleanField()
+    payload = models.CharField(max_length=255,null=True,blank=True)
+
+    def __str__(self):
+        return f"{self.target.url}"
+
 

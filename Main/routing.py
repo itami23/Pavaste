@@ -12,4 +12,5 @@ websocket_urlpatterns = [
     path('ws/xss_scanner/',consumers.XSSScannerConsumer.as_asgi()),
     path('ws/clickjack_scanner/',consumers.ClickjackScannerConsumer.as_asgi()),
     path('ws/directory_traversal_scanner/',consumers.DirectoryTraversalScannerConsumer.as_asgi()),
+    path('ws/os_command_injection_scanner/',consumers.OSCommandInjectionScannerConsumer.as_asgi()),
 ]

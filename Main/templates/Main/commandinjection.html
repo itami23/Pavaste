@@ -1,0 +1,96 @@
+{% extends 'All/base.html' %}
+
+{% block title %}
+    OS Command Injection Scanner
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid pt-4 px-4">
+        <div class="row g-4">
+            <div class="col-sm-12 col-xl-12">
+                <div class="bg-secondary rounded h-100 p-4">
+                    <h6 class="mb-4">OS Command Injection Scanner</h6>
+                    <form id="osCommandInjectionScannerForm">
+                        {% csrf_token %}
+                        <label for="internalLinkSelect">Select Internal Link:</label>
+                        <select id="internalLinkSelect" class="form-select mb-3">
+                            <option value="{{ target_url }}">{{ target_url }}</option>
+                            {% for link in crawler_result.internal_links %}
+                                <option value="{{ link }}">{{ link }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" onclick="scanForOSCommandInjection()" class="btn btn-success">Scan for OS Command Injection</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-sm-12 col-md-6 col-xl-12">
+                <div class="h-100 bg-secondary rounded p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">OS Command Injection Vulnerabilities:</h6>
+                    </div>
+                    <div id="osCommandInjectionResults">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const osCommandInjectionScannerForm = document.getElementById('osCommandInjectionScannerForm');
+        const internalLinkSelect = document.getElementById('internalLinkSelect');
+        const osCommandInjectionResults = document.getElementById('osCommandInjectionResults');
+
+        function scanForOSCommandInjection() {
+            const selectedLink = internalLinkSelect.value;
+            if (!selectedLink) {
+                alert('Please select an internal link.');
+                return;
+            }
+
+            const data = {
+                url: selectedLink,
+            };
+
+            const socket = new WebSocket('ws://' + window.location.host + '/ws/os_command_injection_scanner/');
+            socket.onopen = function (event) {
+                socket.send(JSON.stringify(data));
+            };
+
+            socket.onmessage = function (event) {
+                const message = JSON.parse(event.data);
+
+                osCommandInjectionResults.innerHTML = ''; // Clear previous results
+
+                if (message.status === 'error') {
+                    const errorMessage = document.createElement('p');
+                    errorMessage.textContent = message.message;
+                    osCommandInjectionResults.appendChild(errorMessage);
+                } else if (message.vulnerabilities.length > 0) {
+                    for (const vulnerability of message.vulnerabilities) {
+                        const resultDiv = document.createElement('div');
+                        resultDiv.className = 'mb-3';
+                        resultDiv.innerHTML = `
+                            <p>Payload: ${vulnerability.payload}</p>
+                            <p>URL: ${vulnerability.url}</p>
+                            <p>Method: ${vulnerability.method}</p>
+                        `;
+                        osCommandInjectionResults.appendChild(resultDiv);
+                    }
+                } else {
+                    const noVulnerabilitiesMessage = document.createElement('p');
+                    noVulnerabilitiesMessage.textContent = 'No OS Command Injection vulnerabilities found.';
+                    osCommandInjectionResults.appendChild(noVulnerabilitiesMessage);
+                }
+            };
+
+            socket.onclose = function (event) {
+                console.log("WebSocket connection closed.");
+            };
+
+            socket.onerror = function (event) {
+                console.error("WebSocket error:", event);
+            };
+        }
+    </script>
+{% endblock %}

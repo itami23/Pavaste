@@ -1454,3 +1454,107 @@ class DirectoryTraversalScannerConsumer(AsyncWebsocketConsumer):
                 word = line.strip()
                 words.append(word)
         return words
+
+
+
+
+
+import json
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
+from channels.generic.websocket import AsyncWebsocketConsumer
+
+class OSCommandInjectionScannerConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        pass
+
+    async def receive(self, text_data):
+        try:
+            target_url = self.scope['session']['url']
+            target= await sync_to_async(Target.objects.get)(url=target_url)
+            data = json.loads(text_data)
+            website_url = data.get('url')
+
+            if not website_url:
+                response_data = {
+                    'status': 'error',
+                    'message': 'No input data received.',
+                }
+                await self.send_response(response_data)
+                return
+
+            vulnerabilities = await self.check_os_command_injection_vulnerability(website_url,target)
+
+            response_data = {
+                'status': 'success',
+                'vulnerabilities': vulnerabilities,
+            }
+
+            await self.send_response(response_data)
+
+        except Exception as e:
+            await self.send_error_message(str(e))
+
+    async def send_response(self, data):
+        await self.send(text_data=json.dumps(data))
+
+    async def send_error_message(self, error_message):
+        response_data = {
+            'status': 'error',
+            'message': error_message
+        }
+        await self.send_response(response_data)
+
+    async def check_os_command_injection_vulnerability(self, url,target):
+        vulnerabilities = []
+
+        try:
+            response = requests.get(url)
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            forms = soup.find_all('form')
+            for form in forms:
+                action = form.get('action')
+                method = form.get('method')
+
+                inputs = form.find_all('input')
+                params = {}
+                for input_field in inputs:
+                    name = input_field.get('name')
+                    value = input_field.get('value', '')
+
+                    payloads = [
+                        ';ls',
+                        ';cat /etc/passwd',
+                        ';whoami',
+                        '|SLEEP 15',
+                        ';SLEEP 15'
+                    ]
+                    for payload in payloads:
+                        modified_value = value + payload
+                        params[name] = modified_value
+
+                        response = requests.get(urljoin(url, action), params=params)
+
+                        if payload in response.text:
+                            vulnerabilities.append({
+                                'payload': payload,
+                                'url': urljoin(url, action),
+                                'method': method,
+                            })
+                            commandinjection_result = CommandInjectionResult(
+                                target = target,
+                                url = url,
+                                vulnerable = vuln,
+                                payload = payload,
+                                )
+                            await sync_to_async(commandinjection_result.save)()
+
+        except Exception as e:
+            print("Exception occurred:", e)
+
+        return vulnerabilities
