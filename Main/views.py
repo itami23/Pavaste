@@ -376,3 +376,27 @@ class XssSacan(View):
             'crawler_result' : crawler_result,
         }
         return render(request, 'Main/xssscan.html',context)
+
+
+class ClickjackingScan(View):
+    def get(self,request,*args,**kwargs):
+        target_url = request.session['url']
+        target = get_object_or_404(Target, url=target_url)
+        crawler_result = CrawlerResult.objects.filter(target=target).first()
+        context = {
+            'target_url' : target_url,
+            'crawler_result' : crawler_result,
+        }
+        return render(request, 'Main/clickjacking.html',context)
+
+
+class DirectoryTraversalScan(View):
+    def get(self,request,*args,**kwargs):
+        target_url = request.session['url']
+        target = get_object_or_404(Target, url=target_url)
+        crawler_result = CrawlerResult.objects.filter(target=target).first()
+        context = {
+            'target_url' : target_url,
+            'crawler_result' : crawler_result,
+        }
+        return render(request, 'Main/dirtraversal.html',context)

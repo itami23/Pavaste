@@ -9,15 +9,15 @@ class Target(models.Model):
 
 
 class DirectoryListingResult(models.Model):
-    target = models.ForeignKey(Target, on_delete=models.CASCADE)  # Assuming you have a Target model
-    directory = models.CharField(max_length=255)  # Store the directory URLs
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
+    directory = models.CharField(max_length=255)
 
     def __str__(self):
         return f"{self.target.url} - {self.directory}"
 
 
 class DNSEnumerationResult(models.Model):
-    target = models.ForeignKey(Target, on_delete=models.CASCADE)  # Assuming you have a Target model
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
     record_type = models.CharField(max_length=10)
     records = models.JSONField()
 
@@ -72,3 +72,33 @@ class CrawlerResult(models.Model):
 
     def __str__(self):
         return f"{self.target.url}"
+
+class XssResult(models.Model):
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
+    url = models.CharField(max_length=255)
+    vulnerable = models.BooleanField()
+    payload = models.CharField(max_length=255,null=True,blank=True)
+
+    def __str__(self):
+        return f"{self.target.url}"
+
+
+class ClickjackingResult(models.Model):
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
+    url = models.CharField(max_length=255)
+    vulnerable = models.BooleanField()
+    poc = models.CharField(max_length=255,null=True,blank=True)
+
+    def __str__(self):
+        return f"{self.target.url}"
+
+class DirectoryTraversalresult(models.Model):
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
+    url = models.CharField(max_length=255)
+    vulnerable = models.BooleanField()
+    payload = models.CharField(max_length=255,null=True,blank=True)
+
+    def __str__(self):
+        return f"{self.target.url}"
+
+

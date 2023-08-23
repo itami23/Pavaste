@@ -15,4 +15,6 @@ urlpatterns = [
     path('target_details/<target_id>/',views.TargetInfo.as_view(),name='target_details'),
     path('subdomain_details/<subdomain_id>/',views.SubdomainInfo.as_view(),name='subdomain_details'),
     path('xss/',views.XssSacan.as_view(),name="xssscan"),
+    path('clickjacking/',views.ClickjackingScan.as_view(),name="clickjacking"),
+    path('dirtraversal/',views.DirectoryTraversalScan.as_view(),name = 'dirtraversal'),
 ]

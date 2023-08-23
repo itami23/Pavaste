@@ -1,0 +1,88 @@
+{% extends 'All/base.html' %}
+
+{% block title %}
+    Clickjack Scanner
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid pt-4 px-4">
+        <div class="row g-4">
+            <div class="col-sm-12 col-xl-12">
+                <div class="bg-secondary rounded h-100 p-4">
+                    <h6 class="mb-4">Clickjack Scanner for: {{ target_url }}</h6>
+                    <form id="clickjackScannerForm">
+                        {% csrf_token %}
+                        <label for="internalLinkSelect">Select Internal Link:</label>
+                        <select id="internalLinkSelect" class="form-select mb-3">
+                            <option value="{{ target_url }}">{{ target_url }}</option>
+                            {% for link in crawler_result.internal_links %}
+                                <option value="{{ link }}">{{ link }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" onclick="scanForClickjack()" class="btn btn-success">Scan for Clickjack</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-sm-12 col-md-6 col-xl-12">
+                <div class="h-100 bg-secondary rounded p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">Clickjack Scan Results:</h6>
+                    </div>
+                    <div id="clickjackResults">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const clickjackScannerForm = document.getElementById('clickjackScannerForm');
+        const internalLinkSelect = document.getElementById('internalLinkSelect');
+        const clickjackResults = document.getElementById('clickjackResults');
+
+        function scanForClickjack() {
+            const selectedLink = internalLinkSelect.value;
+            if (!selectedLink) {
+                alert('Please select an internal link.');
+                return;
+            }
+
+            const data = {
+                url: selectedLink,
+            };
+
+            const socket = new WebSocket('ws://' + window.location.host + '/ws/clickjack_scanner/');
+            socket.onopen = function (event) {
+                socket.send(JSON.stringify(data));
+            };
+
+            socket.onmessage = function (event) {
+                const message = JSON.parse(event.data);
+
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'mb-3';
+
+                const statusMessage = `Target: ${message.target}, Status: ${message.status}`;
+                resultDiv.textContent = statusMessage;
+
+                if (message.poc) {
+                    const pocContainer = document.createElement('div');
+                    pocContainer.innerHTML = message.poc;
+                    resultDiv.appendChild(document.createElement('br'));
+                    resultDiv.appendChild(pocContainer);
+                }
+
+                clickjackResults.appendChild(resultDiv);
+            };
+
+            socket.onclose = function (event) {
+                console.log("WebSocket connection closed.");
+            };
+
+            socket.onerror = function (event) {
+                console.error("WebSocket error:", event);
+            };
+        }
+    </script>
+{% endblock %}

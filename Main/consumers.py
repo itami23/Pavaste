@@ -1224,6 +1224,8 @@ class XSSScannerConsumer(AsyncWebsocketConsumer):
 
     async def scan_for_xss(self, url, payloads, stop_after_first=True):
         results = []
+        target_url = self.scope['session']['url']
+        target= await sync_to_async(Target.objects.get)(url=target_url)
         try:
             options = webdriver.FirefoxOptions()
             options.add_argument('--headless')
@@ -1248,6 +1250,13 @@ class XSSScannerConsumer(AsyncWebsocketConsumer):
 
                         if payload in driver.page_source:
                             results.append(payload)
+                            xss_result = XssResult(
+                                target=target,
+                                url=url,
+                                vulnerable=True,
+                                payload=payload
+                            )
+                            await sync_to_async(xss_result.save)()
                             if stop_after_first:
                                 break
                     except:
@@ -1262,3 +1271,186 @@ class XSSScannerConsumer(AsyncWebsocketConsumer):
         finally:
             driver.quit()
 
+
+
+
+
+
+
+from channels.generic.websocket import AsyncWebsocketConsumer
+import json
+from urllib.request import Request, urlopen
+from urllib.parse import urlparse
+
+class ClickjackScannerConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        pass
+
+    async def receive(self, text_data):
+        try:
+            target_url = self.scope['session']['url']
+            target= await sync_to_async(Target.objects.get)(url=target_url)
+            data = json.loads(text_data)
+            url = data.get('url')
+            if not url:
+                response_data = {
+                    'status': 'error',
+                    'message': 'No input data received.',
+                }
+                await self.send_response(response_data)
+                return
+
+            t = url.strip()
+            if not t.startswith(('http://', 'https://')):
+                t = "https://" + t
+            try:
+                req = Request(t, headers={'User-Agent': 'Mozilla/5.0'})
+                data = urlopen(req, timeout=10)
+                headers = data.info()
+
+                if not (("X-Frame-Options") or ("x-frame-options")) in headers:
+                    vuln = True
+                    response_data = {
+                        'target': t,
+                        'status': 'Vulnerable',
+                        'poc': f"""
+                            <html>
+                            <head><title>Clickjack POC page</title></head>
+                            <body>
+                            <p>Website is vulnerable to clickjacking!</p>
+                            <iframe src="{t}" width="500" height="500"></iframe>
+                            </body>
+                            </html>
+                            """
+                    }
+                    clickjacking_result = ClickjackingResult(
+                        target = target,
+                        url = url,
+                        vulnerable = vuln,
+                        poc = f"""
+                            <html>
+                            <head><title>Clickjack POC page</title></head>
+                            <body>
+                            <p>Website is vulnerable to clickjacking!</p>
+                            <iframe src="{t}" width="500" height="500"></iframe>
+                            </body>
+                            </html>
+                            """,
+                    )
+                    await sync_to_async(clickjacking_result.save)()
+                else:
+                    vuln = False
+                    response_data = {
+                        'target': t,
+                        'status': 'Not Vulnerable',
+                    }
+            except KeyboardInterrupt:
+                pass
+            except urllib.error.URLError as e:
+                response_data = {
+                    'target': t,
+                    'status': 'HTTP Error',
+                    'error_description': str(e),
+                }
+            except Exception as e:
+                response_data = {
+                    'target': t,
+                    'status': 'Error',
+                    'error_description': str(e),
+                }
+
+            await self.send_response(response_data)
+
+        except Exception as e:
+            await self.send_error_message(str(e))
+
+    async def send_response(self, data):
+        await self.send(text_data=json.dumps(data))
+
+    async def send_error_message(self, error_message):
+        response_data = {
+            'status': 'error',
+            'message': error_message
+        }
+        await self.send_response(response_data)
+
+
+
+
+
+class DirectoryTraversalScannerConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        pass
+
+    async def receive(self, text_data):
+        try:
+            target_url = self.scope['session']['url']
+            target= await sync_to_async(Target.objects.get)(url=target_url)
+            data = json.loads(text_data)
+            url = data.get('url')
+
+            if not url:
+                response_data = {
+                    'status': 'error',
+                    'message': 'No URL provided.',
+                }
+                await self.send_response(response_data)
+                return
+
+            words = self.load_wordlist("constants/directory_traversal_wordlist")
+            vulnerable_payloads = []
+
+            for word in words:
+                url_with_payload = f'{url}/image?filename={word.strip()}'
+                r = requests.get(url_with_payload)
+                
+                if "root:" in r.text:
+                    vulnerable_payloads.append(word.strip())
+                    directorytraversal_result = DirectoryTraversalresult(
+                        target = target,
+                        url = url,
+                        vulnerable = vuln,
+                        payload = word.strip(),
+                        )
+                    await sync_to_async(directorytraversal_result.save)()
+
+            if vulnerable_payloads:
+                response_data = {
+                    'status': 'success',
+                    'vulnerable_payloads': vulnerable_payloads,
+                }
+            else:
+                response_data = {
+                    'status': 'success',
+                    'vulnerable_payloads': [],
+                    'message': 'No vulnerable payloads found.',
+                }
+
+            await self.send_response(response_data)
+
+        except Exception as e:
+            await self.send_error_message(str(e))
+
+    async def send_response(self, data):
+        await self.send(text_data=json.dumps(data))
+
+    async def send_error_message(self, error_message):
+        response_data = {
+            'status': 'error',
+            'message': error_message,
+        }
+        await self.send_response(response_data)
+
+    def load_wordlist(self, file_path):
+        words = []
+        with open(file_path, 'r') as filehandle:
+            for line in filehandle:
+                word = line.strip()
+                words.append(word)
+        return words

@@ -1,0 +1,101 @@
+{% extends 'All/base.html' %}
+
+{% block title %}
+    Directory Traversal Scanner
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid pt-4 px-4">
+        <div class="row g-4">
+            <div class="col-sm-12 col-xl-12">
+                <div class="bg-secondary rounded h-100 p-4">
+                    <h6 class="mb-4">Directory Traversal Scanner</h6>
+                    <form id="directoryTraversalScannerForm">
+                        {% csrf_token %}
+                        <label for="internalLinkSelect">Select Internal Link:</label>
+                        <select id="internalLinkSelect" class="form-select mb-3">
+                            <option value="{{ target_url }}">{{ target_url }}</option>
+                            {% for link in crawler_result.internal_links %}
+                                <option value="{{ link }}">{{ link }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" onclick="scanForTraversal()" class="btn btn-success">Scan for Directory Traversal</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-sm-12 col-md-6 col-xl-12">
+                <div class="h-100 bg-secondary rounded p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="mb-0">Directory Traversal Scan Results:</h6>
+                    </div>
+                    <div id="directoryTraversalResults">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const directoryTraversalScannerForm = document.getElementById('directoryTraversalScannerForm');
+        const internalLinkSelect = document.getElementById('internalLinkSelect');
+        const directoryTraversalResults = document.getElementById('directoryTraversalResults');
+
+        function scanForTraversal() {
+            const selectedLink = internalLinkSelect.value;
+            if (!selectedLink) {
+                alert('Please select an internal link.');
+                return;
+            }
+
+            const data = {
+                url: selectedLink,
+            };
+
+            const socket = new WebSocket('ws://' + window.location.host + '/ws/directory_traversal_scanner/');
+            socket.onopen = function (event) {
+                socket.send(JSON.stringify(data));
+            };
+
+            socket.onmessage = function (event) {
+                const message = JSON.parse(event.data);
+
+                if (message.status === 'error') {
+                    const errorMessage = document.createElement('p');
+                    errorMessage.textContent = message.message;
+                    directoryTraversalResults.appendChild(errorMessage);
+                } else {
+                    directoryTraversalResults.innerHTML = ''; // Clear previous results
+
+                    if (message.vulnerable_payloads.length > 0) {
+                        // Create a list for the vulnerable payloads
+                        const listElement = document.createElement('ul');
+
+                        // Add each vulnerable payload to the list
+                        for (const payload of message.vulnerable_payloads) {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = `Vulnerable payload: ${payload}`;
+                            listElement.appendChild(listItem);
+                        }
+
+                        directoryTraversalResults.appendChild(listElement);
+                    } else {
+                        const noVulnerabilitiesMessage = document.createElement('p');
+                        noVulnerabilitiesMessage.textContent = 'No vulnerable payloads found.';
+                        directoryTraversalResults.appendChild(noVulnerabilitiesMessage);
+                    }
+                }
+
+                socket.close();
+            };
+
+            socket.onclose = function (event) {
+                console.log("WebSocket connection closed.");
+            };
+
+            socket.onerror = function (event) {
+                console.error("WebSocket error:", event);
+            };
+        }
+    </script>
+{% endblock %}
