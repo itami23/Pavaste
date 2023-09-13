@@ -78,7 +78,7 @@
                                     <td>{{ data.directory_count }}</td>
                                     <td>{{ data.subdomain_count }}</td>
                                     <td>{{ data.url_crawled_count }}</td>
-                                    <td></td>
+                                    <td>{{data.total_vulnerabilities}}</td>
                                     <td><a class="btn btn-sm btn-primary" href="{% url 'generate_pdf_report' data.target.id %}">PDF</a><a class="btn btn-sm btn-primary" href="{% url 'target_details' data.target.id %}">View</a><a class="btn btn-sm btn-primary" href="{% url 'target_details' data.target.id %}">Delete</a></td>
                                 </tr>
                                 {% endfor %}

@@ -110,11 +110,24 @@ class Dashboard(View):
             else : 
                 url_crawled_count = 0
 
+            xss_count = XssResult.objects.filter(target=target, vulnerable=True).count()
+            clickjacking_count = ClickjackingResult.objects.filter(target=target, vulnerable=True).count()
+            directory_traversal_count = DirectoryTraversalresult.objects.filter(target=target, vulnerable=True).count()
+            command_injection_count = CommandInjectionResult.objects.filter(target=target, vulnerable=True).count()
+            total_vulnerabilities = (
+                xss_count + clickjacking_count + directory_traversal_count + command_injection_count
+            )
+
             target_data.append({
                 'target': target,
                 'directory_count': directory_count,
                 'subdomain_count': subdomain_count,
                 'url_crawled_count': url_crawled_count,
+                'xss_count': xss_count,
+                'clickjacking_count': clickjacking_count,
+                'directory_traversal_count': directory_traversal_count,
+                'command_injection_count': command_injection_count,
+                'total_vulnerabilities': total_vulnerabilities,
             })
 
 
@@ -411,3 +424,15 @@ class CommandInjectionScan(View):
             'crawler_result' : crawler_result,
         }
         return render(request, 'Main/commandinjection.html',context)
+
+
+class SQLInjectionScanner(View):
+    def get(self,request,*args,**kwargs):
+        target_url = request.session['url']
+        target = get_object_or_404(Target, url=target_url)
+        crawler_result = CrawlerResult.objects.filter(target=target).first()
+        context = {
+            'target_url' : target_url,
+            'crawler_result' : crawler_result,
+        }
+        return render(request, 'Main/sqlinjection.html',context)

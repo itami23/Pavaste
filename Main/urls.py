@@ -18,4 +18,5 @@ urlpatterns = [
     path('clickjacking/',views.ClickjackingScan.as_view(),name="clickjacking"),
     path('dirtraversal/',views.DirectoryTraversalScan.as_view(),name = 'dirtraversal'),
     path('commandinjection/',views.CommandInjectionScan.as_view(),name='commandinjection'),
+    path('sqlinjection/',views.SQLInjectionScanner.as_view(),name='sqlinjection'),
 ]
